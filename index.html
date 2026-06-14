@@ -1,0 +1,2442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Faultline â€” Product Intelligence Platform</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  /* â”€â”€ TOKENS â”€â”€ */
+  :root {
+    --void: #0A0B0F;
+    --surface: #111318;
+    --panel: #181B22;
+    --border: #252931;
+    --border-hi: #353C47;
+    --ink: #E8EAF0;
+    --ink-dim: #7A8394;
+    --ink-muted: #404957;
+    --fault: #FF3D2E;
+    --fault-dim: rgba(255,61,46,0.12);
+    --fault-glow: rgba(255,61,46,0.35);
+    --amber: #F5A623;
+    --amber-dim: rgba(245,166,35,0.12);
+    --green: #22C55E;
+    --green-dim: rgba(34,197,94,0.12);
+    --blue: #3B82F6;
+    --blue-dim: rgba(59,130,246,0.12);
+    --purple: #A855F7;
+    --purple-dim: rgba(168,85,247,0.12);
+    --r: 6px;
+    --r-lg: 12px;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html { scroll-behavior:smooth; }
+  body {
+    background: var(--void);
+    color: var(--ink);
+    font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+     AUTH SCREEN
+  â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+  #auth-screen {
+    position: fixed;
+    inset: 0;
+    background: var(--void);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+  }
+  #auth-screen.hidden { display: none; }
+
+  .auth-wrap {
+    width: 420px;
+    max-width: 96vw;
+  }
+  .auth-logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 36px;
+    justify-content: center;
+  }
+  .auth-logo-icon {
+    width: 40px; height: 40px;
+    background: var(--fault);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    position: relative; overflow: hidden;
+  }
+  .auth-logo-icon::after {
+    content: '';
+    position: absolute;
+    bottom: 10px; left: -4px; right: -4px;
+    height: 2px;
+    background: white;
+    transform: rotate(-18deg);
+  }
+  .auth-logo-name { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }
+  .auth-logo-tag { font-size: 11px; color: var(--ink-dim); letter-spacing: 0.5px; text-transform: uppercase; }
+
+  .auth-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 32px;
+  }
+  .auth-tabs {
+    display: flex;
+    gap: 0;
+    background: var(--void);
+    border-radius: var(--r);
+    padding: 4px;
+    margin-bottom: 28px;
+  }
+  .auth-tab {
+    flex: 1;
+    padding: 8px;
+    text-align: center;
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: 4px;
+    cursor: pointer;
+    color: var(--ink-dim);
+    transition: all 0.15s;
+    border: none;
+    background: none;
+  }
+  .auth-tab.active { background: var(--fault); color: white; }
+
+  .auth-section { display: none; }
+  .auth-section.active { display: block; }
+
+  .auth-title { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+  .auth-sub { font-size: 13px; color: var(--ink-dim); margin-bottom: 24px; }
+
+  .auth-type-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  .auth-type-opt { display: none; }
+  .auth-type-label {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 14px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    cursor: pointer;
+    transition: all 0.15s;
+    color: var(--ink-dim);
+    font-size: 13px;
+    font-weight: 500;
+    text-align: center;
+  }
+  .auth-type-label .at-icon { font-size: 22px; }
+  .auth-type-opt:checked + .auth-type-label {
+    border-color: var(--fault);
+    background: var(--fault-dim);
+    color: var(--fault);
+  }
+
+  .auth-field { margin-bottom: 16px; }
+  .auth-label {
+    display: block;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.7px;
+    color: var(--ink-dim);
+    margin-bottom: 6px;
+  }
+  .auth-input {
+    width: 100%;
+    background: var(--void);
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    padding: 10px 14px;
+    font-size: 13px;
+    color: var(--ink);
+    outline: none;
+    transition: border-color 0.15s;
+    font-family: inherit;
+  }
+  .auth-input:focus { border-color: var(--fault); }
+  .auth-input::placeholder { color: var(--ink-muted); }
+
+  .auth-btn {
+    width: 100%;
+    background: var(--fault);
+    color: white;
+    border: none;
+    border-radius: var(--r);
+    padding: 12px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    margin-top: 4px;
+    letter-spacing: 0.2px;
+    transition: opacity 0.15s;
+  }
+  .auth-btn:hover { opacity: 0.88; }
+  .auth-err {
+    background: var(--fault-dim);
+    border: 1px solid var(--fault);
+    border-radius: var(--r);
+    padding: 10px 14px;
+    font-size: 12px;
+    color: var(--fault);
+    margin-bottom: 16px;
+    display: none;
+  }
+  .auth-err.show { display: block; }
+  .auth-divider {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 20px 0;
+    color: var(--ink-muted);
+    font-size: 11px;
+  }
+  .auth-divider::before, .auth-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+  .auth-demo-btn {
+    width: 100%;
+    background: var(--void);
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    padding: 10px;
+    font-size: 12px;
+    color: var(--ink-dim);
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.15s;
+  }
+  .auth-demo-btn:hover { border-color: var(--border-hi); color: var(--ink); }
+
+  /* â”€â”€ LAYOUT â”€â”€ */
+  .app { display:flex; height:100vh; overflow:hidden; }
+  .sidebar {
+    width: 220px;
+    min-width: 220px;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    z-index: 10;
+  }
+  .main { flex:1; overflow-y:auto; background:var(--void); }
+
+  /* â”€â”€ SIDEBAR â”€â”€ */
+  .logo {
+    padding: 20px 20px 18px;
+    border-bottom: 1px solid var(--border);
+  }
+  .logo-mark {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .logo-icon {
+    width: 32px; height: 32px;
+    background: var(--fault);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    position: relative;
+    overflow: hidden;
+  }
+  .logo-icon::after {
+    content: '';
+    position: absolute;
+    bottom: 8px; left: -4px; right: -4px;
+    height: 2px;
+    background: white;
+    transform: rotate(-18deg);
+  }
+  .logo-name {
+    font-size: 17px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    color: var(--ink);
+  }
+  .logo-tagline {
+    font-size: 10px;
+    color: var(--ink-dim);
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    margin-top: 1px;
+  }
+  nav { padding: 12px 8px; flex: 1; }
+  .nav-section { margin-bottom: 20px; }
+  .nav-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--ink-muted);
+    padding: 0 12px;
+    margin-bottom: 6px;
+  }
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 12px;
+    border-radius: var(--r);
+    cursor: pointer;
+    color: var(--ink-dim);
+    font-size: 13.5px;
+    font-weight: 500;
+    transition: all 0.15s;
+    position: relative;
+  }
+  .nav-item:hover { background: var(--panel); color: var(--ink); }
+  .nav-item.active { background: var(--fault-dim); color: var(--fault); }
+  .nav-item.active .nav-icon { color: var(--fault); }
+  .nav-icon { font-size: 15px; width: 18px; text-align: center; }
+  .nav-badge {
+    margin-left: auto;
+    background: var(--fault);
+    color: white;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 20px;
+    min-width: 18px;
+    text-align: center;
+  }
+  .nav-badge.purple { background: var(--purple); }
+
+  /* â”€â”€ USER BADGE IN SIDEBAR â”€â”€ */
+  .sidebar-user {
+    padding: 14px 16px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .su-avatar {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: var(--fault-dim);
+    border: 1px solid var(--fault);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--fault);
+    flex-shrink: 0;
+  }
+  .su-avatar.company {
+    background: var(--blue-dim);
+    border-color: var(--blue);
+    color: var(--blue);
+  }
+  .su-info { flex: 1; overflow: hidden; }
+  .su-name { font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .su-role { font-size: 10px; color: var(--ink-dim); text-transform: uppercase; letter-spacing: 0.5px; }
+  .su-logout {
+    background: none;
+    border: none;
+    color: var(--ink-muted);
+    cursor: pointer;
+    font-size: 14px;
+    padding: 4px;
+    border-radius: 4px;
+    transition: color 0.15s;
+  }
+  .su-logout:hover { color: var(--fault); }
+
+  /* â”€â”€ PAGE HEADER â”€â”€ */
+  .page-header {
+    padding: 28px 32px 0;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+  .page-title { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }
+  .page-sub { font-size: 13px; color: var(--ink-dim); margin-top: 3px; }
+  .page-tabs { display: flex; gap: 0; margin-top: 20px; }
+  .tab-btn {
+    padding: 10px 18px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--ink-dim);
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .tab-btn:hover { color: var(--ink); }
+  .tab-btn.active { color: var(--ink); border-bottom-color: var(--fault); }
+
+  /* â”€â”€ CONTENT â”€â”€ */
+  .content { padding: 28px 32px; }
+  .section { display: none; }
+  .section.active { display: block; }
+
+  /* â”€â”€ STAT CARDS â”€â”€ */
+  .stats-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 16px; margin-bottom: 24px; }
+  .stat-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+  }
+  .stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+  }
+  .stat-card.red::before { background: var(--fault); }
+  .stat-card.amber::before { background: var(--amber); }
+  .stat-card.green::before { background: var(--green); }
+  .stat-card.blue::before { background: var(--blue); }
+  .stat-card.purple::before { background: var(--purple); }
+  .stat-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--ink-dim); margin-bottom: 10px; }
+  .stat-val { font-size: 30px; font-weight: 700; letter-spacing: -1px; line-height: 1; }
+  .stat-val.red { color: var(--fault); }
+  .stat-val.amber { color: var(--amber); }
+  .stat-val.green { color: var(--green); }
+  .stat-val.blue { color: var(--blue); }
+  .stat-val.purple { color: var(--purple); }
+  .stat-delta { font-size: 12px; color: var(--ink-dim); margin-top: 8px; }
+
+  /* â”€â”€ CHARTS â”€â”€ */
+  .charts-row { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; margin-bottom: 24px; }
+  .chart-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    padding: 20px;
+  }
+  .chart-title { font-size: 13px; font-weight: 600; margin-bottom: 16px; color: var(--ink); }
+  .chart-subtitle { font-size: 11px; color: var(--ink-dim); font-weight: 400; margin-left: 8px; }
+  .chart-wrap { position: relative; }
+
+  /* â”€â”€ TABLE â”€â”€ */
+  .table-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    overflow: hidden;
+    margin-bottom: 24px;
+  }
+  .table-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .table-title { font-size: 13px; font-weight: 600; }
+  .table-actions { display: flex; gap: 8px; align-items: center; }
+  .search-box {
+    background: var(--void);
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    padding: 7px 12px;
+    font-size: 12px;
+    color: var(--ink);
+    width: 200px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .search-box::placeholder { color: var(--ink-muted); }
+  .search-box:focus { border-color: var(--border-hi); }
+  .btn {
+    background: var(--void);
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    padding: 7px 14px;
+    font-size: 12px;
+    color: var(--ink-dim);
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .btn:hover { border-color: var(--border-hi); color: var(--ink); }
+  .btn-primary { background: var(--fault); border-color: var(--fault); color: white; }
+  .btn-primary:hover { opacity: 0.88; color: white; }
+  .btn-purple { background: var(--purple-dim); border-color: var(--purple); color: var(--purple); }
+  .btn-purple:hover { opacity: 0.88; }
+  .btn-green { background: var(--green-dim); border-color: var(--green); color: var(--green); }
+  .btn-green:hover { opacity: 0.88; }
+  table { width: 100%; border-collapse: collapse; }
+  thead th {
+    padding: 10px 20px;
+    text-align: left;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.7px;
+    color: var(--ink-muted);
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    white-space: nowrap;
+  }
+  tbody tr { border-bottom: 1px solid var(--border); transition: background 0.1s; }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: rgba(255,255,255,0.02); }
+  td { padding: 13px 20px; font-size: 13px; color: var(--ink); vertical-align: middle; }
+  td.dim { color: var(--ink-dim); }
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .pill.green { background: var(--green-dim); color: var(--green); }
+  .pill.amber { background: var(--amber-dim); color: var(--amber); }
+  .pill.red { background: var(--fault-dim); color: var(--fault); }
+  .pill.blue { background: var(--blue-dim); color: var(--blue); }
+  .pill.purple { background: var(--purple-dim); color: var(--purple); }
+  .pill::before { content: 'â—'; font-size: 8px; }
+
+  /* â”€â”€ PRODUCT GRID â”€â”€ */
+  .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px,1fr)); gap: 16px; margin-bottom: 24px; }
+  .product-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    padding: 20px;
+    cursor: pointer;
+    transition: border-color 0.15s, transform 0.1s;
+    position: relative;
+    overflow: hidden;
+  }
+  .product-card:hover { border-color: var(--border-hi); transform: translateY(-1px); }
+  .product-cat { font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--ink-dim); margin-bottom: 8px; }
+  .product-name { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+  .product-id { font-size: 11px; color: var(--ink-muted); margin-bottom: 14px; font-family: monospace; }
+  .product-price { font-size: 16px; font-weight: 700; color: var(--ink); }
+  .product-stock { font-size: 12px; color: var(--ink-dim); }
+  .product-issue-badge {
+    position: absolute;
+    top: 14px; right: 14px;
+    background: var(--fault);
+    color: white;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 20px;
+  }
+
+  /* â”€â”€ ML INTELLIGENCE PANEL â”€â”€ */
+  .ml-card {
+    background: var(--panel);
+    border: 1px solid var(--purple);
+    border-radius: var(--r-lg);
+    padding: 20px;
+    margin-bottom: 24px;
+    position: relative;
+    overflow: hidden;
+  }
+  .ml-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(to right, var(--purple), var(--blue));
+  }
+  .ml-card-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--purple);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .ml-insight {
+    background: var(--void);
+    border-radius: var(--r);
+    padding: 14px 16px;
+    margin-bottom: 10px;
+    border-left: 3px solid var(--purple);
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+  }
+  .ml-insight:last-child { margin-bottom: 0; }
+  .ml-insight-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+  .ml-insight-body { flex: 1; }
+  .ml-insight-title { font-size: 13px; font-weight: 600; margin-bottom: 3px; }
+  .ml-insight-sub { font-size: 12px; color: var(--ink-dim); line-height: 1.6; }
+  .ml-confidence {
+    margin-top: 6px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .ml-conf-bar {
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    flex: 1;
+    max-width: 120px;
+  }
+  .ml-conf-fill {
+    height: 4px;
+    border-radius: 2px;
+    background: var(--purple);
+    transition: width 0.6s;
+  }
+  .ml-conf-label { font-size: 10px; color: var(--ink-muted); }
+
+  /* â”€â”€ ML SUGGESTION BANNER â”€â”€ */
+  .ml-suggestion {
+    background: var(--purple-dim);
+    border: 1px solid var(--purple);
+    border-radius: var(--r);
+    padding: 12px 16px;
+    margin-bottom: 16px;
+    display: none;
+    gap: 12px;
+    align-items: flex-start;
+  }
+  .ml-suggestion.show { display: flex; }
+  .ml-suggestion-icon { font-size: 18px; flex-shrink: 0; }
+  .ml-suggestion-body { flex: 1; }
+  .ml-suggestion-title { font-size: 12px; font-weight: 700; color: var(--purple); margin-bottom: 3px; }
+  .ml-suggestion-text { font-size: 12px; color: var(--ink-dim); }
+
+  /* â”€â”€ FIELD CASES TABLE â”€â”€ */
+  .case-row-resolved { background: rgba(34,197,94,0.04); }
+
+  /* â”€â”€ FORM â”€â”€ */
+  .form-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    padding: 24px;
+  }
+  .form-title { font-size: 14px; font-weight: 600; margin-bottom: 20px; }
+  .form-row { margin-bottom: 16px; }
+  .form-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.7px; color: var(--ink-dim); margin-bottom: 6px; display: block; }
+  .form-input, .form-select, .form-textarea {
+    width: 100%;
+    background: var(--void);
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    padding: 9px 12px;
+    font-size: 13px;
+    color: var(--ink);
+    outline: none;
+    transition: border-color 0.15s;
+    font-family: inherit;
+  }
+  .form-input:focus, .form-select:focus, .form-textarea:focus { border-color: var(--fault); }
+  .form-select option { background: var(--panel); }
+  .form-textarea { resize: vertical; min-height: 100px; line-height: 1.6; }
+  .severity-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 8px; }
+  .sev-option { display: none; }
+  .sev-label {
+    display: block;
+    padding: 8px 6px;
+    border-radius: var(--r);
+    border: 1px solid var(--border);
+    text-align: center;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+    color: var(--ink-dim);
+  }
+  .sev-option:checked + .sev-label { border-color: currentColor; }
+  .sev-option[value="low"]:checked + .sev-label { background: var(--green-dim); color: var(--green); border-color: var(--green); }
+  .sev-option[value="medium"]:checked + .sev-label { background: var(--blue-dim); color: var(--blue); border-color: var(--blue); }
+  .sev-option[value="high"]:checked + .sev-label { background: var(--amber-dim); color: var(--amber); border-color: var(--amber); }
+  .sev-option[value="critical"]:checked + .sev-label { background: var(--fault-dim); color: var(--fault); border-color: var(--fault); }
+  .submit-btn {
+    width: 100%;
+    background: var(--fault);
+    color: white;
+    border: none;
+    border-radius: var(--r);
+    padding: 12px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 8px;
+    transition: opacity 0.15s;
+  }
+  .submit-btn:hover { opacity: 0.88; }
+
+  /* â”€â”€ UPLOAD ZONE â”€â”€ */
+  .upload-zone {
+    border: 2px dashed var(--border);
+    border-radius: var(--r-lg);
+    padding: 40px 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: var(--panel);
+    margin-bottom: 24px;
+  }
+  .upload-zone:hover, .upload-zone.drag { border-color: var(--fault); background: var(--fault-dim); }
+  .upload-icon { font-size: 36px; margin-bottom: 12px; }
+  .upload-title { font-size: 15px; font-weight: 600; margin-bottom: 6px; }
+  .upload-sub { font-size: 12px; color: var(--ink-dim); }
+  #file-input { display: none; }
+
+  /* â”€â”€ DATA PREVIEW â”€â”€ */
+  .data-preview {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    overflow: hidden;
+    margin-bottom: 24px;
+    display: none;
+  }
+  .data-preview.show { display: block; }
+  .preview-header {
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--surface);
+  }
+  .preview-info { font-size: 13px; font-weight: 600; }
+  .preview-meta { font-size: 11px; color: var(--ink-dim); }
+  .preview-table-wrap { overflow-x: auto; max-height: 300px; overflow-y: auto; }
+
+  /* â”€â”€ MODAL â”€â”€ */
+  .modal-bg {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.7);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+  }
+  .modal-bg.show { display: flex; }
+  .modal {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 28px;
+    width: 480px;
+    max-width: 95vw;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+  .modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+  .modal-title { font-size: 16px; font-weight: 700; }
+  .modal-close { background: none; border: none; color: var(--ink-dim); cursor: pointer; font-size: 18px; padding: 4px; }
+  .modal-close:hover { color: var(--ink); }
+
+  /* â”€â”€ TOAST â”€â”€ */
+  .toast {
+    position: fixed;
+    bottom: 24px; right: 24px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    padding: 14px 20px;
+    font-size: 13px;
+    font-weight: 500;
+    z-index: 200;
+    transform: translateY(80px);
+    opacity: 0;
+    transition: all 0.3s;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    max-width: 320px;
+  }
+  .toast.show { transform: translateY(0); opacity: 1; }
+  .toast.success { border-color: var(--green); }
+  .toast.error { border-color: var(--fault); }
+  .toast.purple { border-color: var(--purple); }
+  .toast-icon { font-size: 16px; }
+
+  /* â”€â”€ EMPTY STATE â”€â”€ */
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--ink-dim);
+  }
+  .empty-icon { font-size: 40px; margin-bottom: 12px; opacity: 0.5; }
+  .empty-title { font-size: 15px; font-weight: 600; color: var(--ink); margin-bottom: 6px; }
+  .empty-sub { font-size: 13px; }
+
+  /* â”€â”€ RESPONSIVE â”€â”€ */
+  @media (max-width: 900px) {
+    .stats-row { grid-template-columns: repeat(2,1fr); }
+    .charts-row { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 640px) {
+    .sidebar { width: 60px; min-width: 60px; }
+    .logo-name, .logo-tagline, .nav-item span, .nav-label, .nav-badge,
+    .su-info, .su-logout { display: none; }
+    .nav-icon { margin: 0 auto; }
+    .content { padding: 16px; }
+    .page-header { padding: 20px 16px 0; }
+  }
+
+  /* â”€â”€ SCROLLBAR â”€â”€ */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border-hi); border-radius: 3px; }
+
+  /* â”€â”€ PRODUCT DETAIL MODAL â”€â”€ */
+  .pd-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+  .pd-field { background: var(--void); border-radius: var(--r); padding: 12px; }
+  .pd-field-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.7px; color: var(--ink-muted); margin-bottom: 4px; }
+  .pd-field-val { font-size: 15px; font-weight: 600; }
+  .pd-desc { font-size: 13px; color: var(--ink-dim); line-height: 1.7; background: var(--void); border-radius: var(--r); padding: 12px; margin-bottom: 20px; }
+  .pd-issue-row { display: flex; gap: 12px; align-items: flex-start; padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .pd-issue-row:last-child { border-bottom: none; }
+
+  /* â”€â”€ ADD PRODUCT FORM â”€â”€ */
+  .add-prod-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+  /* â”€â”€ VIEW TOGGLE â”€â”€ */
+  .view-toggle { display: flex; gap: 4px; }
+  .vt-btn {
+    padding: 6px 10px;
+    background: var(--void);
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    color: var(--ink-dim);
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.15s;
+  }
+  .vt-btn.active { background: var(--fault-dim); border-color: var(--fault); color: var(--fault); }
+
+  /* â”€â”€ LIST VIEW â”€â”€ */
+  #product-list-view { display: none; margin-bottom: 24px; }
+  #product-list-view.show { display: block; }
+  #product-grid.hide { display: none; }
+
+  /* â”€â”€ CATEGORY FILTER PILLS â”€â”€ */
+  .cat-filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+  .cat-pill {
+    padding: 5px 14px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--ink-dim);
+    cursor: pointer;
+    transition: all 0.15s;
+    background: var(--panel);
+  }
+  .cat-pill:hover { border-color: var(--border-hi); color: var(--ink); }
+  .cat-pill.active { background: var(--fault-dim); border-color: var(--fault); color: var(--fault); }
+
+  /* â”€â”€ TIMELINE â”€â”€ */
+  .tl-item { display: flex; gap: 14px; margin-bottom: 20px; }
+  .tl-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    margin-top: 5px;
+    flex-shrink: 0;
+  }
+  .tl-dot.red { background: var(--fault); box-shadow: 0 0 8px var(--fault-glow); }
+  .tl-dot.amber { background: var(--amber); }
+  .tl-dot.green { background: var(--green); }
+  .tl-dot.blue { background: var(--blue); }
+  .tl-dot.purple { background: var(--purple); }
+  .tl-title { font-size: 13px; font-weight: 600; margin-bottom: 2px; }
+  .tl-meta { font-size: 11px; color: var(--ink-dim); }
+
+  /* â”€â”€ RESOLVE MODAL â”€â”€ */
+  .resolve-steps { }
+  .resolve-step {
+    background: var(--void);
+    border-radius: var(--r);
+    padding: 12px;
+    margin-bottom: 10px;
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    border: 1px solid var(--border);
+    cursor: pointer;
+    transition: border-color 0.15s;
+  }
+  .resolve-step:hover { border-color: var(--green); }
+  .resolve-step-num {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+  .resolve-step-text { font-size: 12px; color: var(--ink-dim); line-height: 1.6; }
+
+  /* â”€â”€ PERMISSION LOCK â”€â”€ */
+  .perm-lock {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--ink-muted);
+    padding: 4px 8px;
+    background: var(--void);
+    border-radius: 4px;
+    border: 1px solid var(--border);
+  }
+</style>
+</head>
+<body>
+
+<!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+     AUTH SCREEN
+â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
+<div id="auth-screen">
+  <div class="auth-wrap">
+    <div class="auth-logo">
+      <div class="auth-logo-icon"></div>
+      <div>
+        <div class="auth-logo-name">Faultline</div>
+        <div class="auth-logo-tag">Product Intelligence</div>
+      </div>
+    </div>
+
+    <div class="auth-card">
+      <div class="auth-tabs">
+        <button class="auth-tab active" onclick="switchAuthTab('login')">Sign In</button>
+        <button class="auth-tab" onclick="switchAuthTab('register')">Register</button>
+      </div>
+
+      <!-- LOGIN -->
+      <div class="auth-section active" id="auth-login">
+        <div class="auth-title">Welcome back</div>
+        <div class="auth-sub">Sign in to your Faultline account</div>
+        <div class="auth-err" id="login-err"></div>
+        <div class="auth-field">
+          <label class="auth-label">Email</label>
+          <input type="email" class="auth-input" id="login-email" placeholder="you@company.com" autocomplete="email">
+        </div>
+        <div class="auth-field">
+          <label class="auth-label">Password</label>
+          <input type="password" class="auth-input" id="login-password" placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
+        </div>
+        <button class="auth-btn" onclick="doLogin()">Sign In</button>
+        <div class="auth-divider">or try a demo account</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <button class="auth-demo-btn" onclick="demoLogin('user')">ðŸ‘¤ Demo User</button>
+          <button class="auth-demo-btn" onclick="demoLogin('company')">ðŸ¢ Demo Company</button>
+        </div>
+      </div>
+
+      <!-- REGISTER -->
+      <div class="auth-section" id="auth-register">
+        <div class="auth-title">Create account</div>
+        <div class="auth-sub">Join Faultline â€” free to start</div>
+        <div class="auth-err" id="reg-err"></div>
+        <div class="auth-type-row">
+          <div>
+            <input type="radio" name="acc-type" class="auth-type-opt" value="user" id="at-user" checked>
+            <label class="auth-type-label" for="at-user">
+              <span class="at-icon">ðŸ‘¤</span>Individual User
+            </label>
+          </div>
+          <div>
+            <input type="radio" name="acc-type" class="auth-type-opt" value="company" id="at-company">
+            <label class="auth-type-label" for="at-company">
+              <span class="at-icon">ðŸ¢</span>Company / Team
+            </label>
+          </div>
+        </div>
+        <div class="auth-field">
+          <label class="auth-label">Full Name / Company Name</label>
+          <input type="text" class="auth-input" id="reg-name" placeholder="Acme Corp or Jane Smith">
+        </div>
+        <div class="auth-field">
+          <label class="auth-label">Email</label>
+          <input type="email" class="auth-input" id="reg-email" placeholder="you@company.com" autocomplete="email">
+        </div>
+        <div class="auth-field">
+          <label class="auth-label">Password</label>
+          <input type="password" class="auth-input" id="reg-password" placeholder="Min 6 characters" autocomplete="new-password">
+        </div>
+        <div class="auth-field" id="reg-company-field" style="display:none">
+          <label class="auth-label">Company Size</label>
+          <select class="auth-input" id="reg-size">
+            <option>1â€“10 employees</option>
+            <option>11â€“50 employees</option>
+            <option>51â€“200 employees</option>
+            <option>200+ employees</option>
+          </select>
+        </div>
+        <button class="auth-btn" onclick="doRegister()">Create Account</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+     MAIN APP
+â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
+<div class="app" id="main-app" style="display:none">
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="logo">
+      <div class="logo-mark">
+        <div class="logo-icon"></div>
+        <div>
+          <div class="logo-name">Faultline</div>
+          <div class="logo-tagline">Product Intelligence</div>
+        </div>
+      </div>
+    </div>
+    <nav>
+      <div class="nav-section">
+        <div class="nav-label">Overview</div>
+        <div class="nav-item active" onclick="showSection('dashboard')">
+          <span class="nav-icon">â¬¡</span><span>Dashboard</span>
+        </div>
+      </div>
+      <div class="nav-section">
+        <div class="nav-label">Products</div>
+        <div class="nav-item" onclick="showSection('products')">
+          <span class="nav-icon">â—«</span><span>Catalog</span>
+        </div>
+        <div class="nav-item" onclick="showSection('issues')">
+          <span class="nav-icon">âš¡</span><span>Issues</span>
+          <span class="nav-badge" id="issue-count">0</span>
+        </div>
+      </div>
+      <div class="nav-section">
+        <div class="nav-label">Intelligence</div>
+        <div class="nav-item" onclick="showSection('ml')">
+          <span class="nav-icon">âœ¦</span><span>ML Insights</span>
+          <span class="nav-badge purple" id="ml-badge">0</span>
+        </div>
+        <div class="nav-item" onclick="showSection('fieldcases')">
+          <span class="nav-icon">ðŸ“‹</span><span>Field Cases</span>
+        </div>
+      </div>
+      <div class="nav-section">
+        <div class="nav-label">Analysis</div>
+        <div class="nav-item" onclick="showSection('sales')">
+          <span class="nav-icon">â—ˆ</span><span>Sales</span>
+        </div>
+        <div class="nav-item" onclick="showSection('import')">
+          <span class="nav-icon">â†‘</span><span>Import Data</span>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Logged-in user badge -->
+    <div class="sidebar-user">
+      <div class="su-avatar" id="su-avatar">?</div>
+      <div class="su-info">
+        <div class="su-name" id="su-name">â€”</div>
+        <div class="su-role" id="su-role">â€”</div>
+      </div>
+      <button class="su-logout" onclick="doLogout()" title="Sign out">â»</button>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+
+    <!-- â”€â”€ DASHBOARD â”€â”€ -->
+    <div id="sec-dashboard" class="section active">
+      <div class="page-header">
+        <div class="page-title">Dashboard</div>
+        <div class="page-sub" id="dash-welcome">Real-time product & sales overview</div>
+        <div class="page-tabs">
+          <button class="tab-btn active">Overview</button>
+        </div>
+      </div>
+      <div class="content">
+        <div class="stats-row">
+          <div class="stat-card blue">
+            <div class="stat-label">Total Products</div>
+            <div class="stat-val blue" id="d-products">0</div>
+            <div class="stat-delta">in catalog</div>
+          </div>
+          <div class="stat-card green">
+            <div class="stat-label">Total Revenue</div>
+            <div class="stat-val green" id="d-revenue">$0</div>
+            <div class="stat-delta">from sales data</div>
+          </div>
+          <div class="stat-card red">
+            <div class="stat-label">Open Issues</div>
+            <div class="stat-val red" id="d-issues">0</div>
+            <div class="stat-delta">pending review</div>
+          </div>
+          <div class="stat-card purple">
+            <div class="stat-label">ML Patterns Learned</div>
+            <div class="stat-val purple" id="d-patterns">0</div>
+            <div class="stat-delta">from resolved cases</div>
+          </div>
+        </div>
+
+        <div class="charts-row">
+          <div class="chart-card">
+            <div class="chart-title">Sales by Category <span class="chart-subtitle">â€” from data</span></div>
+            <div class="chart-wrap" style="height:220px"><canvas id="chart-sales"></canvas></div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">Issue Severity</div>
+            <div class="chart-wrap" style="height:220px"><canvas id="chart-issues"></canvas></div>
+          </div>
+        </div>
+
+        <div class="charts-row">
+          <div class="chart-card">
+            <div class="chart-title">Top Products by Stock</div>
+            <div class="chart-wrap" style="height:200px"><canvas id="chart-stock"></canvas></div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">Issue Types</div>
+            <div class="chart-wrap" style="height:200px"><canvas id="chart-types"></canvas></div>
+          </div>
+        </div>
+
+        <div class="table-card">
+          <div class="table-header">
+            <span class="table-title">Recent Issues</span>
+            <button class="btn" onclick="showSection('issues')">View all</button>
+          </div>
+          <table>
+            <thead><tr><th>Product</th><th>Issue</th><th>Severity</th><th>Date</th><th>Status</th></tr></thead>
+            <tbody id="recent-issues-table">
+              <tr><td colspan="5" style="text-align:center;color:var(--ink-muted);padding:24px">No issues reported yet</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- â”€â”€ PRODUCTS â”€â”€ -->
+    <div id="sec-products" class="section">
+      <div class="page-header">
+        <div class="page-title">Product Catalog</div>
+        <div class="page-sub" id="product-count-label">18 products in catalog</div>
+        <div class="page-tabs">
+          <button class="tab-btn active" onclick="setCatalogFilter('all',this)">All Products</button>
+          <button class="tab-btn" onclick="setCatalogFilter('instock',this)">In Stock</button>
+          <button class="tab-btn" onclick="setCatalogFilter('issues',this)">Issues Flagged</button>
+          <button class="tab-btn" onclick="setCatalogFilter('lowstock',this)">Low Stock</button>
+        </div>
+      </div>
+      <div class="content">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px;flex-wrap:wrap;">
+          <div style="display:flex;gap:8px;align-items:center;flex:1;flex-wrap:wrap;">
+            <input type="text" class="search-box" placeholder="Search by name, SKU, or categoryâ€¦" id="product-search" oninput="renderProductGrid()" style="width:260px">
+            <div class="cat-filters" id="cat-filters"></div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <div class="view-toggle">
+              <button class="vt-btn active" id="vt-grid" onclick="setView('grid')" title="Grid view">âŠž</button>
+              <button class="vt-btn" id="vt-list" onclick="setView('list')" title="List view">â˜°</button>
+            </div>
+            <button class="btn btn-primary" id="btn-add-product" onclick="openAddProduct()">+ Add Product</button>
+            <button class="btn" onclick="showSection('import')">â†‘ Import</button>
+          </div>
+        </div>
+        <div id="product-grid" class="product-grid"></div>
+        <div id="product-list-view">
+          <div class="table-card">
+            <table>
+              <thead><tr><th>Product</th><th>SKU</th><th>Category</th><th>Price</th><th>Stock</th><th>Revenue</th><th>Status</th><th></th></tr></thead>
+              <tbody id="product-list-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- â”€â”€ ISSUES â”€â”€ -->
+    <div id="sec-issues" class="section">
+      <div class="page-header">
+        <div class="page-title">Issue Reports</div>
+        <div class="page-sub">Track, triage, and resolve product problems</div>
+        <div class="page-tabs">
+          <button class="tab-btn active" onclick="filterIssueTab('all',this)">All Issues</button>
+          <button class="tab-btn" onclick="filterIssueTab('critical',this)">Critical</button>
+          <button class="tab-btn" onclick="filterIssueTab('resolved',this)">Resolved</button>
+        </div>
+      </div>
+      <div class="content">
+        <div style="display:grid;grid-template-columns:1fr 320px;gap:24px">
+          <div>
+            <div class="table-card">
+              <div class="table-header">
+                <span class="table-title">All Reports</span>
+                <div class="table-actions">
+                  <input type="text" class="search-box" placeholder="Search issues..." id="issue-search" oninput="renderIssuesTable()">
+                  <button class="btn btn-primary" onclick="openReportModal()">+ Report Issue</button>
+                </div>
+              </div>
+              <table>
+                <thead><tr>
+                  <th>ID</th><th>Product</th><th>Description</th><th>Type</th><th>Severity</th><th>Date</th><th>Status</th><th>Action</th>
+                </tr></thead>
+                <tbody id="issues-table">
+                  <tr><td colspan="8" style="text-align:center;color:var(--ink-muted);padding:32px">No issues reported yet.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div>
+            <div class="chart-card" style="margin-bottom:16px">
+              <div class="chart-title">By Severity</div>
+              <div style="height:160px"><canvas id="chart-issues2"></canvas></div>
+            </div>
+            <div class="table-card">
+              <div class="table-header"><span class="table-title">Recent Activity</span></div>
+              <div style="padding:16px">
+                <div id="issue-timeline">
+                  <div class="empty-state" style="padding:20px"><div class="empty-sub">No activity yet</div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- â”€â”€ ML INSIGHTS â”€â”€ -->
+    <div id="sec-ml" class="section">
+      <div class="page-header">
+        <div class="page-title">ML Insights</div>
+        <div class="page-sub">Learned patterns from resolved field cases</div>
+        <div class="page-tabs">
+          <button class="tab-btn active">Patterns</button>
+          <button class="tab-btn">Predictions</button>
+        </div>
+      </div>
+      <div class="content">
+        <div class="stats-row" style="grid-template-columns:repeat(4,1fr)">
+          <div class="stat-card purple">
+            <div class="stat-label">Patterns Learned</div>
+            <div class="stat-val purple" id="ml-stat-patterns">0</div>
+            <div class="stat-delta">from resolved cases</div>
+          </div>
+          <div class="stat-card green">
+            <div class="stat-label">Cases Resolved</div>
+            <div class="stat-val green" id="ml-stat-resolved">0</div>
+            <div class="stat-delta">total closed issues</div>
+          </div>
+          <div class="stat-card blue">
+            <div class="stat-label">Avg Confidence</div>
+            <div class="stat-val blue" id="ml-stat-conf">0%</div>
+            <div class="stat-delta">pattern accuracy</div>
+          </div>
+          <div class="stat-card amber">
+            <div class="stat-label">Suggestions Made</div>
+            <div class="stat-val amber" id="ml-stat-sug">0</div>
+            <div class="stat-delta">this session</div>
+          </div>
+        </div>
+
+        <div class="charts-row">
+          <div class="chart-card">
+            <div class="chart-title">Resolution Time by Issue Type <span class="chart-subtitle">â€” from field cases</span></div>
+            <div style="height:220px"><canvas id="chart-restime"></canvas></div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">Resolution Success Rate</div>
+            <div style="height:220px"><canvas id="chart-success"></canvas></div>
+          </div>
+        </div>
+
+        <div class="ml-card" id="ml-insights-panel">
+          <div class="ml-card-title">âœ¦ Field Intelligence Patterns</div>
+          <div id="ml-insights-list">
+            <div style="color:var(--ink-muted);font-size:13px;text-align:center;padding:20px">
+              Resolve issues to begin learning patterns. Navigate to Issues â†’ mark as Resolved â†’ add fix notes.
+            </div>
+          </div>
+        </div>
+
+        <div class="table-card">
+          <div class="table-header">
+            <span class="table-title">Pattern Database</span>
+            <span style="font-size:12px;color:var(--ink-dim)" id="ml-pattern-count">0 patterns</span>
+          </div>
+          <table>
+            <thead><tr>
+              <th>Issue Type</th><th>Category</th><th>Fix</th><th>Confidence</th><th>Cases</th><th>Avg Days</th>
+            </tr></thead>
+            <tbody id="ml-patterns-table">
+              <tr><td colspan="6" style="text-align:center;color:var(--ink-muted);padding:32px">No patterns yet â€” resolve field issues to populate</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- â”€â”€ FIELD CASES â”€â”€ -->
+    <div id="sec-fieldcases" class="section">
+      <div class="page-header">
+        <div class="page-title">Field Cases</div>
+        <div class="page-sub">Resolved repair log â€” every case feeds the ML engine</div>
+        <div class="page-tabs">
+          <button class="tab-btn active">All Cases</button>
+        </div>
+      </div>
+      <div class="content">
+        <div class="table-card">
+          <div class="table-header">
+            <span class="table-title">Resolved Repairs</span>
+            <span style="font-size:12px;color:var(--green)" id="fc-count">0 logged</span>
+          </div>
+          <table>
+            <thead><tr>
+              <th>Case ID</th><th>Product</th><th>Issue Type</th><th>Fix Applied</th><th>Severity</th><th>Days to Fix</th><th>Engineer</th><th>Date</th>
+            </tr></thead>
+            <tbody id="fieldcases-table">
+              <tr><td colspan="8" style="text-align:center;color:var(--ink-muted);padding:32px">No resolved cases yet. Mark issues as resolved to log them here.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- â”€â”€ SALES â”€â”€ -->
+    <div id="sec-sales" class="section">
+      <div class="page-header">
+        <div class="page-title">Sales Analysis</div>
+        <div class="page-sub">Revenue breakdown and product performance</div>
+        <div class="page-tabs">
+          <button class="tab-btn active">Overview</button>
+        </div>
+      </div>
+      <div class="content">
+        <div class="stats-row" style="grid-template-columns:repeat(3,1fr)">
+          <div class="stat-card green">
+            <div class="stat-label">Total Revenue</div>
+            <div class="stat-val green" id="s-revenue">$0</div>
+            <div class="stat-delta">from all sales</div>
+          </div>
+          <div class="stat-card blue">
+            <div class="stat-label">Units Sold</div>
+            <div class="stat-val blue" id="s-units">0</div>
+            <div class="stat-delta">total quantity</div>
+          </div>
+          <div class="stat-card amber">
+            <div class="stat-label">Avg. Order Value</div>
+            <div class="stat-val amber" id="s-aov">$0</div>
+            <div class="stat-delta">per transaction</div>
+          </div>
+        </div>
+        <div class="charts-row">
+          <div class="chart-card">
+            <div class="chart-title">Revenue by Category</div>
+            <div style="height:240px"><canvas id="chart-cat"></canvas></div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">Sales Mix</div>
+            <div style="height:240px"><canvas id="chart-mix"></canvas></div>
+          </div>
+        </div>
+        <div class="table-card">
+          <div class="table-header">
+            <span class="table-title">Product Performance</span>
+            <input type="text" class="search-box" placeholder="Search..." id="sales-search" oninput="filterSales()">
+          </div>
+          <table>
+            <thead><tr><th>Product</th><th>Category</th><th>Price</th><th>Stock</th><th>Revenue (Est.)</th><th>Status</th></tr></thead>
+            <tbody id="sales-table">
+              <tr><td colspan="6" style="text-align:center;color:var(--ink-muted);padding:32px">Import data to see sales analysis</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- â”€â”€ IMPORT â”€â”€ -->
+    <div id="sec-import" class="section">
+      <div class="page-header">
+        <div class="page-title">Import Data</div>
+        <div class="page-sub">Upload Excel or CSV files to populate the platform</div>
+        <div class="page-tabs"><button class="tab-btn active">Upload</button></div>
+      </div>
+      <div class="content">
+        <div class="upload-zone" id="drop-zone" onclick="document.getElementById('file-input').click()"
+          ondragover="event.preventDefault();this.classList.add('drag')"
+          ondragleave="this.classList.remove('drag')"
+          ondrop="handleDrop(event)">
+          <div class="upload-icon">â¬†</div>
+          <div class="upload-title">Drop your file here, or click to browse</div>
+          <div class="upload-sub">Supports .xlsx, .xls, .csv â€” columns: Name, SKU, Category, Price, Stock, Revenue (optional)</div>
+        </div>
+        <input type="file" id="file-input" accept=".xlsx,.xls,.csv" onchange="handleFile(event)">
+        <div class="data-preview" id="data-preview">
+          <div class="preview-header">
+            <div>
+              <div class="preview-info" id="preview-info">Loaded file</div>
+              <div class="preview-meta" id="preview-meta"></div>
+            </div>
+            <div style="display:flex;gap:8px">
+              <button class="btn btn-primary" onclick="importData()">Import All Rows</button>
+              <button class="btn" onclick="clearPreview()">Clear</button>
+            </div>
+          </div>
+          <div class="preview-table-wrap">
+            <table>
+              <thead id="preview-head"></thead>
+              <tbody id="preview-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- PRODUCT DETAIL MODAL -->
+<div class="modal-bg" id="product-detail-modal">
+  <div class="modal" style="width:560px">
+    <div class="modal-head">
+      <div class="modal-title" id="pd-modal-title">Product Detail</div>
+      <button class="modal-close" onclick="closeModal('product-detail-modal')">âœ•</button>
+    </div>
+    <div id="pd-modal-body"></div>
+  </div>
+</div>
+
+<!-- ADD PRODUCT MODAL -->
+<div class="modal-bg" id="add-product-modal">
+  <div class="modal" style="width:560px">
+    <div class="modal-head">
+      <div class="modal-title" id="ap-modal-title">Add New Product</div>
+      <button class="modal-close" onclick="closeModal('add-product-modal')">âœ•</button>
+    </div>
+    <div class="add-prod-grid">
+      <div class="form-row" style="grid-column:1/-1">
+        <label class="form-label">Product Name *</label>
+        <input type="text" class="form-input" id="ap-name" placeholder="e.g. Wireless Headphones">
+      </div>
+      <div class="form-row">
+        <label class="form-label">SKU / Product ID</label>
+        <input type="text" class="form-input" id="ap-sku" placeholder="e.g. WNC-0042">
+      </div>
+      <div class="form-row">
+        <label class="form-label">Category</label>
+        <input type="text" class="form-input" id="ap-cat" placeholder="e.g. Electronics" list="cat-list">
+        <datalist id="cat-list"></datalist>
+      </div>
+      <div class="form-row">
+        <label class="form-label">Price ($) *</label>
+        <input type="number" class="form-input" id="ap-price" placeholder="0.00" min="0" step="0.01">
+      </div>
+      <div class="form-row">
+        <label class="form-label">Stock / Quantity</label>
+        <input type="number" class="form-input" id="ap-stock" placeholder="0" min="0">
+      </div>
+      <div class="form-row">
+        <label class="form-label">Revenue (optional)</label>
+        <input type="number" class="form-input" id="ap-revenue" placeholder="0.00" min="0" step="0.01">
+      </div>
+      <div class="form-row">
+        <label class="form-label">Status</label>
+        <select class="form-select" id="ap-status">
+          <option>Active</option>
+          <option>Low Stock</option>
+          <option>Inactive</option>
+          <option>Discontinued</option>
+        </select>
+      </div>
+      <div class="form-row" style="grid-column:1/-1">
+        <label class="form-label">Description</label>
+        <textarea class="form-textarea" id="ap-desc" placeholder="Brief product descriptionâ€¦" style="min-height:72px"></textarea>
+      </div>
+    </div>
+    <input type="hidden" id="ap-edit-id">
+    <button class="submit-btn" id="ap-submit-btn" onclick="saveProduct()">Add Product</button>
+  </div>
+</div>
+
+<!-- REPORT ISSUE MODAL -->
+<div class="modal-bg" id="report-modal">
+  <div class="modal">
+    <div class="modal-head">
+      <div class="modal-title">âš¡ Report Product Issue</div>
+      <button class="modal-close" onclick="closeModal('report-modal')">âœ•</button>
+    </div>
+    <!-- ML suggestion banner -->
+    <div class="ml-suggestion" id="ml-issue-suggestion">
+      <span class="ml-suggestion-icon">âœ¦</span>
+      <div class="ml-suggestion-body">
+        <div class="ml-suggestion-title">ML Suggestion</div>
+        <div class="ml-suggestion-text" id="ml-suggestion-text"></div>
+      </div>
+    </div>
+    <div class="form-row">
+      <label class="form-label">Product</label>
+      <select class="form-select" id="issue-product" onchange="mlSuggestOnProduct()">
+        <option value="">Select productâ€¦</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <label class="form-label">Issue Type</label>
+      <select class="form-select" id="issue-type" onchange="mlSuggestOnType()">
+        <option>Defect / Quality</option>
+        <option>Shipping Damage</option>
+        <option>Wrong Item</option>
+        <option>Missing Part</option>
+        <option>Performance</option>
+        <option>Safety Concern</option>
+        <option>Labeling Error</option>
+        <option>Other</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <label class="form-label">Description</label>
+      <textarea class="form-textarea" id="issue-desc" placeholder="Describe the issue in detailâ€¦"></textarea>
+    </div>
+    <div class="form-row">
+      <label class="form-label">Severity</label>
+      <div class="severity-row">
+        <div><input type="radio" name="sev" class="sev-option" value="low" id="sev-low"><label class="sev-label" for="sev-low">Low</label></div>
+        <div><input type="radio" name="sev" class="sev-option" value="medium" id="sev-med" checked><label class="sev-label" for="sev-med">Medium</label></div>
+        <div><input type="radio" name="sev" class="sev-option" value="high" id="sev-high"><label class="sev-label" for="sev-high">High</label></div>
+        <div><input type="radio" name="sev" class="sev-option" value="critical" id="sev-crit"><label class="sev-label" for="sev-crit">Critical</label></div>
+      </div>
+    </div>
+    <button class="submit-btn" onclick="submitIssue()">Submit Report</button>
+  </div>
+</div>
+
+<!-- RESOLVE ISSUE MODAL -->
+<div class="modal-bg" id="resolve-modal">
+  <div class="modal" style="width:520px">
+    <div class="modal-head">
+      <div class="modal-title">âœ“ Resolve & Log Case</div>
+      <button class="modal-close" onclick="closeModal('resolve-modal')">âœ•</button>
+    </div>
+    <input type="hidden" id="resolve-issue-id">
+    <div style="background:var(--void);border-radius:var(--r);padding:14px;margin-bottom:20px;font-size:13px;color:var(--ink-dim)" id="resolve-issue-preview"></div>
+    <div class="form-row">
+      <label class="form-label">Fix Applied *</label>
+      <textarea class="form-textarea" id="resolve-fix" placeholder="Describe the fix or resolution steps in detail. This trains the ML engine." style="min-height:80px"></textarea>
+    </div>
+    <!-- ML suggested fix -->
+    <div class="ml-suggestion" id="ml-resolve-suggestion" style="margin-bottom:16px">
+      <span class="ml-suggestion-icon">âœ¦</span>
+      <div class="ml-suggestion-body">
+        <div class="ml-suggestion-title">ML Suggested Fix</div>
+        <div class="ml-suggestion-text" id="ml-resolve-text"></div>
+        <button class="btn btn-purple" style="margin-top:8px;font-size:11px;padding:4px 10px" onclick="useMLFix()">Use this fix</button>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="form-row">
+        <label class="form-label">Days to Resolve</label>
+        <input type="number" class="form-input" id="resolve-days" placeholder="e.g. 3" min="0" value="1">
+      </div>
+      <div class="form-row">
+        <label class="form-label">Engineer / Technician</label>
+        <input type="text" class="form-input" id="resolve-eng" placeholder="Name or ID">
+      </div>
+    </div>
+    <div class="form-row">
+      <label class="form-label">Root Cause</label>
+      <select class="form-select" id="resolve-root">
+        <option>Manufacturing defect</option>
+        <option>Design flaw</option>
+        <option>Supplier quality issue</option>
+        <option>Shipping / handling damage</option>
+        <option>Software / firmware bug</option>
+        <option>User error</option>
+        <option>Environmental factor</option>
+        <option>Unknown</option>
+      </select>
+    </div>
+    <button class="submit-btn" style="background:var(--green)" onclick="resolveIssue()">âœ“ Mark Resolved & Log to ML</button>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast">
+  <span class="toast-icon" id="toast-icon"></span>
+  <span id="toast-msg"></span>
+</div>
+
+<script>
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+//  MINI-JWT  (client-side simulation â€” in production, do this server-side)
+//  Uses HMAC-SHA256 via SubtleCrypto
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// Local demo token helpers. This is client-side demo auth only; real apps should authenticate on a server.
+const TOKEN_TTL = 8 * 60 * 60 * 1000;
+function encodeToken(payload) {
+  return btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
+}
+function decodeToken(token) {
+  try { return JSON.parse(decodeURIComponent(escape(atob(token)))); }
+  catch(e) { return null; }
+}
+async function jwtCreate(payload) {
+  return encodeToken(payload);
+}
+async function jwtVerify(token) {
+  const payload = decodeToken(token);
+  if (!payload) return null;
+  if (payload.exp && Date.now() > payload.exp) return null;
+  return payload;
+}
+
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+//  USER STORE  (localStorage simulation)
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+function getUsers() {
+  try { return JSON.parse(localStorage.getItem('fl_users') || '[]'); } catch(e) { return []; }
+}
+function saveUsers(u) { localStorage.setItem('fl_users', JSON.stringify(u)); }
+
+function initDefaultUsers() {
+  const users = getUsers();
+  const emails = users.map(u => u.email);
+  const defaults = [
+    { id:'U001', name:'Demo User', email:'user@demo.com', password:'demo123', type:'user', createdAt: Date.now() },
+    { id:'U002', name:'Acme Corp', email:'company@demo.com', password:'demo123', type:'company', size:'51â€“200 employees', createdAt: Date.now() }
+  ];
+  defaults.forEach(function(d){ if(!emails.includes(d.email)) users.push(d); });
+  saveUsers(users);
+}
+
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+//  AUTH STATE
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+let currentUser = null;
+
+async function tryAutoLogin() {
+  const token = localStorage.getItem('fl_token');
+  if (!token) return false;
+  const payload = await jwtVerify(token);
+  if (!payload) { localStorage.removeItem('fl_token'); return false; }
+  currentUser = payload;
+  return true;
+}
+
+async function doLogin() {
+  const email    = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+  const errEl    = document.getElementById('login-err');
+  errEl.classList.remove('show');
+
+  if (!email || !password) {
+    errEl.textContent = 'Please enter email and password.'; errEl.classList.add('show'); return;
+  }
+  const users = getUsers();
+  const user  = users.find(function(u){ return u.email === email && u.password === password; });
+  if (!user) {
+    errEl.textContent = 'Invalid email or password.'; errEl.classList.add('show'); return;
+  }
+  await loginUser(user);
+}
+
+async function demoLogin(type) {
+  const email = type === 'company' ? 'company@demo.com' : 'user@demo.com';
+  const users = getUsers();
+  const user  = users.find(function(u){ return u.email === email; });
+  if (user) await loginUser(user);
+}
+
+async function loginUser(user) {
+  const payload = {
+    sub:  user.id,
+    name: user.name,
+    email:user.email,
+    type: user.type,
+    iat:  Date.now(),
+    exp:  Date.now() + 8 * 60 * 60 * 1000   // 8-hour session
+  };
+  const token = await jwtCreate(payload);
+  localStorage.setItem('fl_token', token);
+  currentUser = payload;
+  bootApp();
+}
+
+async function doRegister() {
+  const name     = document.getElementById('reg-name').value.trim();
+  const email    = document.getElementById('reg-email').value.trim();
+  const password = document.getElementById('reg-password').value;
+  const type     = document.querySelector('input[name="acc-type"]:checked').value;
+  const errEl    = document.getElementById('reg-err');
+  errEl.classList.remove('show');
+
+  if (!name || !email || !password) {
+    errEl.textContent = 'All fields are required.'; errEl.classList.add('show'); return;
+  }
+  if (password.length < 6) {
+    errEl.textContent = 'Password must be at least 6 characters.'; errEl.classList.add('show'); return;
+  }
+  const users = getUsers();
+  if (users.find(function(u){ return u.email === email; })) {
+    errEl.textContent = 'An account with this email already exists.'; errEl.classList.add('show'); return;
+  }
+  const newUser = {
+    id: 'U' + String(users.length + 1).padStart(3,'0'),
+    name, email, password, type,
+    size: type === 'company' ? document.getElementById('reg-size').value : '',
+    createdAt: Date.now()
+  };
+  users.push(newUser);
+  saveUsers(users);
+  await loginUser(newUser);
+}
+
+function doLogout() {
+  localStorage.removeItem('fl_token');
+  currentUser = null;
+  document.getElementById('main-app').style.display = 'none';
+  document.getElementById('auth-screen').classList.remove('hidden');
+  document.getElementById('login-email').value = '';
+  document.getElementById('login-password').value = '';
+  document.getElementById('login-err').classList.remove('show');
+  showToast('Signed out', 'success');
+}
+
+function switchAuthTab(tab) {
+  document.querySelectorAll('.auth-tab').forEach(function(t,i){
+    t.classList.toggle('active', (i===0 && tab==='login') || (i===1 && tab==='register'));
+  });
+  document.getElementById('auth-login').classList.toggle('active', tab==='login');
+  document.getElementById('auth-register').classList.toggle('active', tab==='register');
+  // show company field dynamically
+  document.querySelectorAll('input[name="acc-type"]').forEach(function(r){
+    r.addEventListener('change', function(){
+      document.getElementById('reg-company-field').style.display = r.value==='company'?'block':'none';
+    });
+  });
+}
+
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+//  APP BOOT
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+function bootApp() {
+  document.getElementById('auth-screen').classList.add('hidden');
+  document.getElementById('main-app').style.display = 'flex';
+
+  // Populate sidebar user badge
+  const isCompany = currentUser.type === 'company';
+  const avEl = document.getElementById('su-avatar');
+  avEl.textContent = currentUser.name.charAt(0).toUpperCase();
+  avEl.className   = 'su-avatar' + (isCompany ? ' company' : '');
+  document.getElementById('su-name').textContent = currentUser.name;
+  document.getElementById('su-role').textContent = isCompany ? 'Company Account' : 'Individual User';
+  document.getElementById('dash-welcome').textContent =
+    'Welcome back, ' + currentUser.name + ' Â· ' + (isCompany ? 'Company dashboard' : 'Personal workspace');
+
+  // Restrict add-product to company or admin
+  const canAdd = isCompany;
+  const addBtn = document.getElementById('btn-add-product');
+  if (!canAdd) {
+    addBtn.classList.add('btn');
+    addBtn.classList.remove('btn-primary');
+    addBtn.title = 'Company accounts can add products';
+    addBtn.style.opacity = '0.5';
+    addBtn.style.cursor = 'not-allowed';
+    addBtn.onclick = function(){ showToast('Only company accounts can add products', 'error'); };
+  }
+
+  init();
+  setTimeout(renderCharts, 100);
+}
+
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+//  STATE
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+let products = [];
+let issues   = [];
+let rawData  = [];
+let fieldCases = [];         // resolved cases â†’ ML training data
+let mlPatterns = {};         // learned patterns
+let mlSuggestionsCount = 0;
+let currentIssueTab = 'all';
+let catalogFilter = 'all';
+let currentView   = 'grid';
+let charts = {};
+
+const COLORS = ['#FF3D2E','#F5A623','#3B82F6','#22C55E','#A855F7','#EC4899','#14B8A6','#F97316'];
+const CAT_ICONS = {
+  Electronics:'ðŸ”Œ', Apparel:'ðŸ‘•', 'Home & Garden':'ðŸŒ¿', Sports:'âš½',
+  Beauty:'âœ¨', Food:'ðŸŽ', Furniture:'ðŸ›‹ï¸', Toys:'ðŸ§¸', Books:'ðŸ“š',
+  Tools:'ðŸ”§', General:'ðŸ“¦'
+};
+
+// â”€â”€ SEED DATA â”€â”€
+const SEED_PRODUCTS = [
+  { id:'PRD-0001', name:'AuraSound Pro X', sku:'ASP-001', category:'Electronics', price:249.99, stock:142, revenue:18749, status:'Active', description:'Premium wireless noise-cancelling headphones with 40hr battery life and spatial audio.', issues:1 },
+  { id:'PRD-0002', name:'FlexRun 500 Trainers', sku:'FRN-500', category:'Sports', price:119.95, stock:310, revenue:22190, status:'Active', description:'Lightweight running shoes with carbon-fiber plate and responsive foam midsole.', issues:0 },
+  { id:'PRD-0003', name:'Verdant Standing Desk', sku:'VSD-090', category:'Furniture', price:649.00, stock:38, revenue:12331, status:'Active', description:'Height-adjustable electric desk with dual-motor lift system and oak veneer top.', issues:2 },
+  { id:'PRD-0004', name:'NovaSkin Serum 30ml', sku:'NSS-030', category:'Beauty', price:54.50, stock:520, revenue:17430, status:'Active', description:'Retinol + peptide night serum.', issues:0 },
+  { id:'PRD-0005', name:'CoreChef Air Fryer 6L', sku:'CCF-006', category:'Home & Garden', price:89.99, stock:74, revenue:8099, status:'Active', description:'Rapid-air technology fryer with 12 pre-set modes.', issues:1 },
+  { id:'PRD-0006', name:'Lumina Smart Bulb 4-Pack', sku:'LSB-004', category:'Electronics', price:39.99, stock:228, revenue:5119, status:'Active', description:'16M colour RGBW smart bulbs.', issues:0 },
+  { id:'PRD-0007', name:'UrbanEdge Jogger Pants', sku:'UEJ-M-BLK', category:'Apparel', price:64.00, stock:185, revenue:7424, status:'Active', description:'Technical stretch joggers.', issues:0 },
+  { id:'PRD-0008', name:'BrewMaster Pour-Over Kit', sku:'BMP-KIT', category:'Food', price:44.95, stock:92, revenue:3326, status:'Active', description:'Gooseneck kettle, dripper, and 50 filters.', issues:0 },
+  { id:'PRD-0009', name:'ProGrip Resistance Bands', sku:'PGB-SET5', category:'Sports', price:29.99, stock:401, revenue:9597, status:'Active', description:'Set of 5 latex-free bands.', issues:0 },
+  { id:'PRD-0010', name:'CloudPillow Memory Foam', sku:'CPM-QN', category:'Home & Garden', price:79.00, stock:11, revenue:1659, status:'Low Stock', description:'Queen-size contour pillow.', issues:1 },
+  { id:'PRD-0011', name:'PixelCam 4K Action Cam', sku:'PCM-4K', category:'Electronics', price:199.00, stock:0, revenue:14930, status:'Inactive', description:'Waterproof 4K/60fps action camera.', issues:3 },
+  { id:'PRD-0012', name:'BotanicBlend Face Wash', sku:'BBF-150', category:'Beauty', price:22.00, stock:340, revenue:5940, status:'Active', description:'Gentle foaming cleanser.', issues:0 },
+  { id:'PRD-0013', name:'EcoWeave Tote Bag', sku:'EWT-NAT', category:'Apparel', price:18.00, stock:620, revenue:7020, status:'Active', description:'Organic cotton canvas tote.', issues:0 },
+  { id:'PRD-0014', name:'Montero Chess Set', sku:'MCH-WLN', category:'Toys', price:134.00, stock:55, revenue:4690, status:'Active', description:'Tournament-size weighted pieces.', issues:0 },
+  { id:'PRD-0015', name:'ThermoKeg 1L Flask', sku:'TKF-1L', category:'Home & Garden', price:36.50, stock:8, revenue:1095, status:'Low Stock', description:'Double-wall vacuum insulated steel flask.', issues:1 },
+  { id:'PRD-0016', name:'DeepWork Planner 2025', sku:'DWP-25', category:'Books', price:19.99, stock:730, revenue:12594, status:'Active', description:'12-month undated productivity planner.', issues:0 },
+  { id:'PRD-0017', name:'PrecisionCut Knife Set', sku:'PCK-5', category:'Tools', price:179.00, stock:29, revenue:5370, status:'Active', description:'5-piece German steel chef knife set.', issues:0 },
+  { id:'PRD-0018', name:'SolarCharger 20W Panel', sku:'SCP-020', category:'Electronics', price:59.99, stock:6, revenue:1440, status:'Low Stock', description:'Foldable monocrystalline solar panel.', issues:2 },
+];
+
+const SEED_ISSUES = [
+  { id:'ISS-0001', productId:'PRD-0001', productName:'AuraSound Pro X', type:'Performance', desc:'Right earcup audio cuts out intermittently after 30 minutes of use.', sev:'high', date:'Jun 10, 2025', status:'Open', category:'Electronics' },
+  { id:'ISS-0002', productId:'PRD-0003', productName:'Verdant Standing Desk', type:'Defect / Quality', desc:'Lift motor produces grinding noise at heights above 110cm.', sev:'critical', date:'Jun 8, 2025', status:'Open', category:'Furniture' },
+  { id:'ISS-0003', productId:'PRD-0003', productName:'Verdant Standing Desk', type:'Missing Part', desc:'Assembly bag missing M6 bolts (6 required). Customer unable to complete build.', sev:'high', date:'Jun 7, 2025', status:'Open', category:'Furniture' },
+  { id:'ISS-0004', productId:'PRD-0005', productName:'CoreChef Air Fryer 6L', type:'Safety Concern', desc:'Unit trips household fuse on 13A circuit after 10 minutes continuous use.', sev:'critical', date:'Jun 5, 2025', status:'Open', category:'Home & Garden' },
+  { id:'ISS-0005', productId:'PRD-0010', productName:'CloudPillow Memory Foam', type:'Defect / Quality', desc:'Bamboo cover develops pilling after 3 machine washes.', sev:'low', date:'Jun 3, 2025', status:'Open', category:'Home & Garden' },
+  { id:'ISS-0006', productId:'PRD-0011', productName:'PixelCam 4K Action Cam', type:'Performance', desc:'EIS stabilisation disabled automatically in temperatures below 10Â°C.', sev:'high', date:'May 30, 2025', status:'Open', category:'Electronics' },
+  { id:'ISS-0007', productId:'PRD-0011', productName:'PixelCam 4K Action Cam', type:'Defect / Quality', desc:'Waterproof seal on battery door fails at depths greater than 1m (rated to 10m).', sev:'critical', date:'May 28, 2025', status:'Open', category:'Electronics' },
+  { id:'ISS-0008', productId:'PRD-0011', productName:'PixelCam 4K Action Cam', type:'Labeling Error', desc:'Box states "4K 120fps" but actual maximum is 4K/60fps.', sev:'medium', date:'May 25, 2025', status:'Open', category:'Electronics' },
+  { id:'ISS-0009', productId:'PRD-0015', productName:'ThermoKeg 1L Flask', type:'Shipping Damage', desc:'Lid gasket arrives cracked in approx 15% of shipments from warehouse B.', sev:'medium', date:'May 22, 2025', status:'Open', category:'Home & Garden' },
+  { id:'ISS-0010', productId:'PRD-0018', productName:'SolarCharger 20W Panel', type:'Performance', desc:'Actual output measured at 11â€“13W under optimal conditions, not the stated 20W.', sev:'high', date:'May 20, 2025', status:'Open', category:'Electronics' },
+  { id:'ISS-0011', productId:'PRD-0018', productName:'SolarCharger 20W Panel', type:'Defect / Quality', desc:'USB-C port plastic surround cracks after repeated plug cycles.', sev:'medium', date:'May 18, 2025', status:'Open', category:'Electronics' },
+];
+
+// Seed field cases so ML has something to learn from on first load
+const SEED_FIELD_CASES = [
+  { id:'FC-0001', issueId:'ISS-X01', productId:'PRD-0001', productName:'AuraSound Pro X', type:'Performance', category:'Electronics', fix:'Firmware update v2.3.1 resolves Bluetooth audio dropout. Flash via companion app. Reset pairing afterward.', sev:'high', daysToFix:2, engineer:'A. Patel', rootCause:'Software / firmware bug', date:'Mar 15, 2025', resolvedBy:'A. Patel' },
+  { id:'FC-0002', issueId:'ISS-X02', productId:'PRD-0003', productName:'Verdant Standing Desk', type:'Missing Part', category:'Furniture', fix:'Ship M6 bolt pack (Part #VSD-BOLT-M6) via express courier. Include revised assembly diagram. No product return needed.', sev:'high', daysToFix:1, engineer:'R. Chen', rootCause:'Supplier quality issue', date:'Apr 2, 2025', resolvedBy:'R. Chen' },
+  { id:'FC-0003', issueId:'ISS-X03', productId:'PRD-0006', productName:'Lumina Smart Bulb 4-Pack', type:'Defect / Quality', category:'Electronics', fix:'Identified bad firmware batch. Replace units from batch LSB-FEB-24. New firmware handles voltage spike protection.', sev:'medium', daysToFix:5, engineer:'S. Okonkwo', rootCause:'Manufacturing defect', date:'Apr 10, 2025', resolvedBy:'S. Okonkwo' },
+  { id:'FC-0004', issueId:'ISS-X04', productId:'PRD-0015', productName:'ThermoKeg 1L Flask', type:'Shipping Damage', category:'Home & Garden', fix:'Changed packaging: added foam collar around lid. Switched warehouse B to Warehouse C for all ThermoKeg orders. Gasket replacement kit dispatched.', sev:'medium', daysToFix:3, engineer:'L. Martin', rootCause:'Shipping / handling damage', date:'Apr 18, 2025', resolvedBy:'L. Martin' },
+  { id:'FC-0005', issueId:'ISS-X05', productId:'PRD-0011', productName:'PixelCam 4K Action Cam', type:'Labeling Error', category:'Electronics', fix:'Updated product listing and box artwork. Issued correction notice to retailers. No product recall needed; firmware confirms 4K/60fps limit.', sev:'medium', daysToFix:4, engineer:'D. Walsh', rootCause:'Design flaw', date:'May 5, 2025', resolvedBy:'D. Walsh' },
+  { id:'FC-0006', issueId:'ISS-X06', productId:'PRD-0017', productName:'PrecisionCut Knife Set', type:'Defect / Quality', category:'Tools', fix:'Handle adhesive replaced with heat-resistant epoxy from Supplier B. Affected batch recalled (PCK-JAN-25). Replacement programme launched.', sev:'high', daysToFix:7, engineer:'A. Patel', rootCause:'Supplier quality issue', date:'May 12, 2025', resolvedBy:'A. Patel' },
+];
+
+function init() {
+  products   = SEED_PRODUCTS.map(function(p){ return Object.assign({},p); });
+  issues     = SEED_ISSUES.map(function(i){ return Object.assign({},i); });
+  fieldCases = SEED_FIELD_CASES.map(function(c){ return Object.assign({},c); });
+  mlLearnFromCases();
+  updateAll();
+}
+
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+//  ML ENGINE
+//  Learns patterns from resolved field cases.
+//  Pattern key = issueType + '|' + category
+//  Stores: fix examples, avg days, confidence score
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+function mlLearnFromCases() {
+  mlPatterns = {};
+  fieldCases.forEach(function(c){
+    const key = c.type + '|' + c.category;
+    if (!mlPatterns[key]) {
+      mlPatterns[key] = {
+        type: c.type,
+        category: c.category,
+        fixes: [],
+        totalDays: 0,
+        count: 0,
+        rootCauses: {}
+      };
+    }
+    const p = mlPatterns[key];
+    p.fixes.push(c.fix);
+    p.totalDays += c.daysToFix || 1;
+    p.count++;
+    p.rootCauses[c.rootCause] = (p.rootCauses[c.rootCause] || 0) + 1;
+  });
+
+  // Compute confidence: more cases = higher confidence (caps at 95%)
+  Object.values(mlPatterns).forEach(function(p){
+    p.avgDays     = +(p.totalDays / p.count).toFixed(1);
+    p.confidence  = Math.min(95, 40 + p.count * 15);   // 1 case = 55%, 2=70%, 4=100% capped 95
+    p.bestFix     = p.fixes[p.fixes.length - 1];        // most recent = most refined
+    p.topRootCause = Object.entries(p.rootCauses).sort(function(a,b){ return b[1]-a[1]; })[0][0];
+  });
+
+  updateMLStats();
+  renderMLInsights();
+  renderMLPatternsTable();
+  renderFieldCasesTable();
+}
+
+function mlGetSuggestion(issueType, category) {
+  const exact = mlPatterns[issueType + '|' + category];
+  if (exact) return exact;
+  // Fallback: same issue type, any category
+  return Object.values(mlPatterns).find(function(p){ return p.type === issueType; }) || null;
+}
+
+function mlSuggestOnProduct() { mlCheckSuggestion(); }
+function mlSuggestOnType()    { mlCheckSuggestion(); }
+
+function mlCheckSuggestion() {
+  const pid  = document.getElementById('issue-product').value;
+  const type = document.getElementById('issue-type').value;
+  const sugEl = document.getElementById('ml-issue-suggestion');
+  const sugTxt = document.getElementById('ml-suggestion-text');
+  if (!pid || !type) { sugEl.classList.remove('show'); return; }
+  const product = products.find(function(p){ return p.id===pid; });
+  if (!product) { sugEl.classList.remove('show'); return; }
+  const pattern = mlGetSuggestion(type, product.category);
+  if (pattern) {
+    mlSuggestionsCount++;
+    document.getElementById('ml-stat-sug').textContent = mlSuggestionsCount;
+    sugTxt.textContent = 'Based on ' + pattern.count + ' field case' + (pattern.count>1?'s':'') +
+      ' (' + pattern.confidence + '% confidence): avg fix time is ' + pattern.avgDays + ' day' + (pattern.avgDays!==1?'s':'') +
+      '. Common root cause: ' + pattern.topRootCause + '.';
+    sugEl.classList.add('show');
+  } else {
+    sugEl.classList.remove('show');
+  }
+}
+
+function openResolveModal(issueId) {
+  const issue = issues.find(function(i){ return i.id===issueId; });
+  if (!issue) return;
+  document.getElementById('resolve-issue-id').value = issueId;
+  document.getElementById('resolve-issue-preview').innerHTML =
+    '<strong>' + issue.productName + '</strong> Â· ' + issue.type +
+    ' Â· <span class="pill ' + ({low:'green',medium:'blue',high:'amber',critical:'red'}[issue.sev]||'blue') + '" style="font-size:10px">' + issue.sev + '</span>' +
+    '<div style="margin-top:6px;font-size:12px">' + issue.desc + '</div>';
+  document.getElementById('resolve-fix').value = '';
+  document.getElementById('resolve-eng').value = currentUser ? currentUser.name : '';
+
+  // ML suggested fix
+  const pattern = mlGetSuggestion(issue.type, issue.category || '');
+  const mlSugEl = document.getElementById('ml-resolve-suggestion');
+  const mlSugTxt= document.getElementById('ml-resolve-text');
+  if (pattern) {
+    mlSugTxt.textContent = pattern.bestFix;
+    mlSugEl.classList.add('show');
+  } else {
+    mlSugEl.classList.remove('show');
+  }
+  document.getElementById('resolve-modal').classList.add('show');
+}
+
+function useMLFix() {
+  const sugText = document.getElementById('ml-resolve-text').textContent;
+  document.getElementById('resolve-fix').value = sugText;
+}
+
+function resolveIssue() {
+  const issueId = document.getElementById('resolve-issue-id').value;
+  const fix     = document.getElementById('resolve-fix').value.trim();
+  const days    = parseInt(document.getElementById('resolve-days').value) || 1;
+  const eng     = document.getElementById('resolve-eng').value.trim() || 'Unknown';
+  const root    = document.getElementById('resolve-root').value;
+  if (!fix) { showToast('Please describe the fix applied', 'error'); return; }
+
+  const issue = issues.find(function(i){ return i.id===issueId; });
+  if (!issue) return;
+  issue.status = 'Resolved';
+
+  // Update product issue count
+  const product = products.find(function(p){ return p.id===issue.productId; });
+  if (product && product.issues > 0) product.issues--;
+
+  // Log to field cases
+  const fc = {
+    id:          'FC-' + String(fieldCases.length + 1).padStart(4,'0'),
+    issueId:     issueId,
+    productId:   issue.productId,
+    productName: issue.productName,
+    type:        issue.type,
+    category:    issue.category || (product ? product.category : 'General'),
+    fix:         fix,
+    sev:         issue.sev,
+    daysToFix:   days,
+    engineer:    eng,
+    rootCause:   root,
+    date:        new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}),
+    resolvedBy:  currentUser ? currentUser.name : eng
+  };
+  fieldCases.unshift(fc);
+
+  // Re-train ML
+  mlLearnFromCases();
+
+  closeModal('resolve-modal');
+  renderIssuesTable();
+  renderRecentIssues();
+  renderTimeline();
+  updateIssueCount();
+  renderProductGrid();
+  setTimeout(renderCharts, 50);
+  showToast('âœ¦ Case ' + fc.id + ' logged Â· ML engine updated', 'purple');
+}
+
+function updateMLStats() {
+  const pCount = Object.keys(mlPatterns).length;
+  const rCount = fieldCases.length;
+  const avgConf = pCount ? Math.round(Object.values(mlPatterns).reduce(function(a,p){ return a+p.confidence; },0)/pCount) : 0;
+  document.getElementById('d-patterns').textContent  = pCount;
+  document.getElementById('ml-badge').textContent    = pCount;
+  const mlSP = document.getElementById('ml-stat-patterns');
+  const mlSR = document.getElementById('ml-stat-resolved');
+  const mlSC = document.getElementById('ml-stat-conf');
+  if(mlSP) mlSP.textContent = pCount;
+  if(mlSR) mlSR.textContent = rCount;
+  if(mlSC) mlSC.textContent = avgConf + '%';
+}
+
+function renderMLInsights() {
+  const container = document.getElementById('ml-insights-list');
+  if (!container) return;
+  const patterns = Object.values(mlPatterns);
+  if (!patterns.length) {
+    container.innerHTML = '<div style="color:var(--ink-muted);font-size:13px;text-align:center;padding:20px">No patterns yet â€” resolve issues to begin learning.</div>';
+    return;
+  }
+  const icons = { 'Performance':'âš¡', 'Defect / Quality':'ðŸ”§', 'Missing Part':'ðŸ“¦', 'Shipping Damage':'ðŸšš', 'Labeling Error':'ðŸ·ï¸', 'Safety Concern':'âš ï¸', 'Wrong Item':'âŒ', 'Other':'ðŸ’¡' };
+  container.innerHTML = patterns.sort(function(a,b){ return b.count-a.count; }).map(function(p){
+    const icon = icons[p.type] || 'ðŸ’¡';
+    const confFill = p.confidence;
+    return '<div class="ml-insight">'
+      + '<div class="ml-insight-icon">' + icon + '</div>'
+      + '<div class="ml-insight-body">'
+      + '<div class="ml-insight-title">' + p.type + ' in ' + p.category + '</div>'
+      + '<div class="ml-insight-sub">' + p.bestFix.slice(0,120) + (p.bestFix.length>120?'â€¦':'') + '</div>'
+      + '<div class="ml-insight-sub" style="margin-top:4px">Root cause: <strong style="color:var(--ink)">' + p.topRootCause + '</strong> Â· Avg fix: <strong style="color:var(--ink)">' + p.avgDays + 'd</strong> Â· ' + p.count + ' case' + (p.count>1?'s':'') + '</div>'
+      + '<div class="ml-confidence">'
+      + '<div class="ml-conf-bar"><div class="ml-conf-fill" style="width:' + confFill + '%"></div></div>'
+      + '<span class="ml-conf-label">' + confFill + '% confidence</span>'
+      + '</div>'
+      + '</div></div>';
+  }).join('');
+}
+
+function renderMLPatternsTable() {
+  const tbody = document.getElementById('ml-patterns-table');
+  const countEl = document.getElementById('ml-pattern-count');
+  const patterns = Object.values(mlPatterns);
+  if(countEl) countEl.textContent = patterns.length + ' pattern' + (patterns.length!==1?'s':'');
+  if (!patterns.length) {
+    if(tbody) tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--ink-muted);padding:32px">No patterns yet</td></tr>';
+    return;
+  }
+  if(!tbody) return;
+  tbody.innerHTML = patterns.sort(function(a,b){ return b.confidence-a.confidence; }).map(function(p){
+    const confColor = p.confidence>=80?'var(--green)':p.confidence>=60?'var(--amber)':'var(--fault)';
+    return '<tr>'
+      + '<td style="font-weight:600">' + p.type + '</td>'
+      + '<td class="dim">' + p.category + '</td>'
+      + '<td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink-dim);font-size:12px">' + p.bestFix.slice(0,60) + 'â€¦</td>'
+      + '<td><span style="color:' + confColor + ';font-weight:700">' + p.confidence + '%</span></td>'
+      + '<td style="color:var(--purple)">' + p.count + '</td>'
+      + '<td class="dim">' + p.avgDays + 'd</td>'
+      + '</tr>';
+  }).join('');
+}
+
+function renderFieldCasesTable() {
+  const tbody = document.getElementById('fieldcases-table');
+  const countEl = document.getElementById('fc-count');
+  if(countEl) countEl.textContent = fieldCases.length + ' logged';
+  if (!tbody) return;
+  if (!fieldCases.length) {
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--ink-muted);padding:32px">No resolved cases yet.</td></tr>';
+    return;
+  }
+  const s = {low:'green',medium:'blue',high:'amber',critical:'red'};
+  tbody.innerHTML = fieldCases.map(function(c){
+    return '<tr class="case-row-resolved">'
+      + '<td style="font-family:monospace;font-size:11px;color:var(--green)">' + c.id + '</td>'
+      + '<td style="font-weight:600">' + c.productName + '</td>'
+      + '<td class="dim">' + c.type + '</td>'
+      + '<td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--ink-dim)">' + c.fix + '</td>'
+      + '<td><span class="pill ' + (s[c.sev]||'blue') + '">' + c.sev + '</span></td>'
+      + '<td style="color:var(--purple)">' + c.daysToFix + 'd</td>'
+      + '<td class="dim">' + c.engineer + '</td>'
+      + '<td class="dim">' + c.date + '</td>'
+      + '</tr>';
+  }).join('');
+}
+
+function renderMLCharts() {
+  // Resolution time by issue type
+  const typeMap = {};
+  fieldCases.forEach(function(c){
+    if (!typeMap[c.type]) typeMap[c.type] = { total:0, count:0 };
+    typeMap[c.type].total += c.daysToFix;
+    typeMap[c.type].count++;
+  });
+  const typeLabels = Object.keys(typeMap);
+  const typeAvgs   = typeLabels.map(function(k){ return +(typeMap[k].total/typeMap[k].count).toFixed(1); });
+
+  destroyChart('restime');
+  const rtCtx = document.getElementById('chart-restime');
+  if (rtCtx && typeLabels.length) {
+    charts.restime = new Chart(rtCtx.getContext('2d'), {
+      type:'bar',
+      data:{
+        labels: typeLabels,
+        datasets:[{ label:'Avg Days', data:typeAvgs, backgroundColor:COLORS, borderRadius:4, borderSkipped:false }]
+      },
+      options:{
+        plugins:{legend:{display:false}},
+        scales:{
+          x:{grid:{color:'#252931'},ticks:{color:'#7A8394'}},
+          y:{grid:{color:'#252931'},ticks:{color:'#7A8394'},title:{display:true,text:'Days',color:'#7A8394'}}
+        },
+        responsive:true, maintainAspectRatio:false
+      }
+    });
+  }
+
+  // Success rate (confidence) per pattern
+  const patArr = Object.values(mlPatterns);
+  const patLabels = patArr.map(function(p){ return p.type.slice(0,14); });
+  const patConf   = patArr.map(function(p){ return p.confidence; });
+  destroyChart('success');
+  const scCtx = document.getElementById('chart-success');
+  if (scCtx && patLabels.length) {
+    charts.success = new Chart(scCtx.getContext('2d'), {
+      type:'doughnut',
+      data:{
+        labels: patLabels,
+        datasets:[{ data:patConf, backgroundColor:COLORS, borderWidth:0, hoverOffset:4 }]
+      },
+      options:{
+        plugins:{legend:{position:'bottom',labels:{color:'#7A8394',boxWidth:10,padding:10,font:{size:10}}}},
+        responsive:true, maintainAspectRatio:false, cutout:'60%'
+      }
+    });
+  }
+}
+
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+//  SECTION ROUTING
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+function showSection(id) {
+  document.querySelectorAll('.section').forEach(function(s){ s.classList.remove('active'); });
+  document.querySelectorAll('.nav-item').forEach(function(n){ n.classList.remove('active'); });
+  document.getElementById('sec-' + id).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(function(it){
+    if (it.getAttribute('onclick') && it.getAttribute('onclick').includes("'" + id + "'")) it.classList.add('active');
+  });
+  if (id === 'dashboard')   setTimeout(renderCharts, 50);
+  if (id === 'sales')       { renderSalesTable(); setTimeout(renderSalesCharts, 50); }
+  if (id === 'issues')      { renderIssuesTable(); renderTimeline(); setTimeout(renderIssueCharts, 50); }
+  if (id === 'products')    { renderCatPills(); renderProductGrid(); }
+  if (id === 'ml')          { renderMLInsights(); renderMLPatternsTable(); setTimeout(renderMLCharts, 50); }
+  if (id === 'fieldcases')  renderFieldCasesTable();
+}
+
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+//  UI HELPERS
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+function showToast(msg, type) {
+  type = type || 'success';
+  const icons = { success:'âœ“', error:'âš¡', purple:'âœ¦' };
+  const t = document.getElementById('toast');
+  document.getElementById('toast-msg').textContent = msg;
+  document.getElementById('toast-icon').textContent = icons[type] || 'âœ“';
+  t.className = 'toast show ' + type;
+  setTimeout(function(){ t.classList.remove('show'); }, 3400);
+}
+
+function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+
+function setCatalogFilter(f, el) {
+  catalogFilter = f;
+  document.querySelectorAll('#sec-products .tab-btn').forEach(function(b){ b.classList.remove('active'); });
+  if (el) el.classList.add('active');
+  renderProductGrid();
+}
+
+function setView(v) {
+  currentView = v;
+  document.getElementById('vt-grid').classList.toggle('active', v==='grid');
+  document.getElementById('vt-list').classList.toggle('active', v==='list');
+  document.getElementById('product-grid').classList.toggle('hide', v==='list');
+  document.getElementById('product-list-view').classList.toggle('show', v==='list');
+  renderProductGrid();
+}
+
+function filterIssueTab(tab, el) {
+  currentIssueTab = tab;
+  document.querySelectorAll('#sec-issues .tab-btn').forEach(function(b){ b.classList.remove('active'); });
+  if (el) el.classList.add('active');
+  renderIssuesTable();
+}
+// PRODUCTS AND MISSING RENDERERS - repaired from truncated export
+function getFilteredProducts() {
+  const search = document.getElementById('product-search');
+  const q = search && search.value ? search.value.toLowerCase() : '';
+  const activePill = document.querySelector('.cat-pill.active');
+  const activeCat = activePill ? activePill.dataset.cat : '';
+  return products.filter(function(p){
+    const matchQ = !q || p.name.toLowerCase().includes(q) || p.category.toLowerCase().includes(q) || (p.sku || '').toLowerCase().includes(q);
+    const matchCat = !activeCat || p.category === activeCat;
+    const matchFilter =
+      catalogFilter === 'all' ? true :
+      catalogFilter === 'instock' ? p.stock > 10 :
+      catalogFilter === 'issues' ? p.issues > 0 :
+      catalogFilter === 'lowstock' ? (p.stock > 0 && p.stock <= 20) : true;
+    return matchQ && matchCat && matchFilter;
+  });
+}
+
+function money(n) { return '$' + Number(n || 0).toLocaleString(undefined, { maximumFractionDigits: 0 }); }
+function sevClass(sev) { return ({ low:'green', medium:'blue', high:'amber', critical:'red' }[sev] || 'blue'); }
+function statusClass(status) { return status === 'Low Stock' ? 'amber' : (status === 'Inactive' || status === 'Discontinued') ? 'red' : 'green'; }
+
+function updateAll() {
+  updateIssueCount();
+  updateDashboardStats();
+  renderRecentIssues();
+  renderSalesTable();
+  renderIssuesTable();
+  renderTimeline();
+  renderCatPills();
+  renderProductGrid();
+  populateIssueProducts();
+  renderFieldCasesTable();
+  updateMLStats();
+  renderMLInsights();
+  renderMLPatternsTable();
+}
+
+function updateDashboardStats() {
+  const revenue = products.reduce(function(sum,p){ return sum + (Number(p.revenue) || 0); }, 0);
+  const openIssues = issues.filter(function(i){ return i.status !== 'Resolved'; }).length;
+  const set = function(id, val){ const el = document.getElementById(id); if (el) el.textContent = val; };
+  set('d-products', products.length);
+  set('d-revenue', money(revenue));
+  set('d-issues', openIssues);
+  set('d-patterns', Object.keys(mlPatterns).length);
+}
+
+function updateIssueCount() {
+  const el = document.getElementById('issue-count');
+  if (el) el.textContent = issues.filter(function(i){ return i.status !== 'Resolved'; }).length;
+}
+
+function renderRecentIssues() {
+  const tbody = document.getElementById('recent-issues-table');
+  if (!tbody) return;
+  const recent = issues.slice(0, 6);
+  tbody.innerHTML = recent.map(function(i){
+    return '<tr><td style="font-weight:600">' + i.productName + '</td><td class="dim">' + i.type + '</td><td><span class="pill ' + sevClass(i.sev) + '">' + i.sev + '</span></td><td class="dim">' + i.date + '</td></tr>';
+  }).join('') || '<tr><td colspan="4" style="text-align:center;color:var(--ink-muted);padding:24px">No issues logged.</td></tr>';
+}
+
+function renderSalesTable() {
+  const tbody = document.getElementById('sales-table');
+  if (!tbody) return;
+  tbody.innerHTML = products.slice().sort(function(a,b){ return (b.revenue || 0) - (a.revenue || 0); }).map(function(p){
+    return '<tr><td style="font-weight:600">' + p.name + '</td><td class="dim">' + p.category + '</td><td>' + money(p.revenue) + '</td><td class="dim">' + p.stock + '</td><td><span class="pill ' + statusClass(p.status) + '">' + p.status + '</span></td></tr>';
+  }).join('');
+}
+
+function renderIssuesTable() {
+  const tbody = document.getElementById('issues-table');
+  if (!tbody) return;
+  const qEl = document.getElementById('issue-search');
+  const q = qEl && qEl.value ? qEl.value.toLowerCase() : '';
+  let list = issues.filter(function(i){
+    const matchesTab = currentIssueTab === 'all' || (currentIssueTab === 'resolved' ? i.status === 'Resolved' : i.sev === currentIssueTab);
+    const matchesQ = !q || i.productName.toLowerCase().includes(q) || i.type.toLowerCase().includes(q) || i.desc.toLowerCase().includes(q);
+    return matchesTab && matchesQ;
+  });
+  tbody.innerHTML = list.map(function(i){
+    const action = i.status === 'Resolved' ? '<span class="pill green">Resolved</span>' : '<button class="btn btn-green" onclick="openResolveModal(\'' + i.id + '\')">Resolve</button>';
+    return '<tr><td style="font-family:monospace;font-size:11px;color:var(--ink-dim)">' + i.id + '</td><td style="font-weight:600">' + i.productName + '</td><td class="dim">' + i.type + '</td><td style="max-width:330px;color:var(--ink-dim);font-size:12px">' + i.desc + '</td><td><span class="pill ' + sevClass(i.sev) + '">' + i.sev + '</span></td><td class="dim">' + i.date + '</td><td>' + action + '</td></tr>';
+  }).join('') || '<tr><td colspan="7" style="text-align:center;color:var(--ink-muted);padding:32px">No issues match this view.</td></tr>';
+}
+
+function renderTimeline() {
+  const el = document.getElementById('issue-timeline');
+  if (!el) return;
+  const latest = issues.slice(0, 5);
+  el.innerHTML = latest.map(function(i){
+    return '<div class="timeline-item"><div class="timeline-dot ' + sevClass(i.sev) + '"></div><div><div style="font-weight:600;font-size:12px">' + i.productName + '</div><div style="color:var(--ink-dim);font-size:12px">' + i.type + ' · ' + i.date + '</div></div></div>';
+  }).join('') || '<div style="color:var(--ink-muted);font-size:13px">No issue activity yet.</div>';
+}
+
+function renderCatPills() {
+  const container = document.getElementById('cat-filters');
+  if (!container) return;
+  const activeEl = document.querySelector('.cat-pill.active');
+  const activeCat = activeEl ? activeEl.dataset.cat : '';
+  const cats = Array.from(new Set(products.map(function(p){ return p.category; }))).sort();
+  container.innerHTML = cats.map(function(c){ return '<div class="cat-pill' + (c === activeCat ? ' active' : '') + '" data-cat="' + c + '" onclick="toggleCatFilter(this)">' + c + '</div>'; }).join('');
+  const dl = document.getElementById('cat-list');
+  if (dl) dl.innerHTML = cats.map(function(c){ return '<option value="' + c + '">'; }).join('');
+}
+
+function toggleCatFilter(el) {
+  const isActive = el.classList.contains('active');
+  document.querySelectorAll('.cat-pill').forEach(function(p){ p.classList.remove('active'); });
+  if (!isActive) el.classList.add('active');
+  renderProductGrid();
+}
+
+function renderProductGrid() {
+  const list = getFilteredProducts();
+  const countEl = document.getElementById('product-count-label');
+  if (countEl) countEl.textContent = products.length + ' products in catalog' + (list.length !== products.length ? ' · ' + list.length + ' shown' : '');
+  const grid = document.getElementById('product-grid');
+  const body = document.getElementById('product-list-body');
+  if (grid) {
+    grid.innerHTML = list.map(function(p){
+      const icon = CAT_ICONS[p.category] || '□';
+      return '<div class="product-card" onclick="showProductDetail(\'' + p.id + '\')">'
+        + (p.issues ? '<div class="product-issue-badge">' + p.issues + ' issue' + (p.issues > 1 ? 's' : '') + '</div>' : '')
+        + '<div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:14px"><div style="width:44px;height:44px;border-radius:10px;background:var(--void);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">' + icon + '</div><div><div class="product-cat">' + p.category + '</div><div class="product-name">' + p.name + '</div><div class="product-id">' + (p.sku || p.id) + '</div></div></div>'
+        + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><span class="product-price">$' + Number(p.price || 0).toFixed(2) + '</span><span class="product-stock">' + p.stock + ' in stock</span></div>'
+        + '<span class="pill ' + statusClass(p.status) + '">' + p.status + '</span></div>';
+    }).join('') || '<div class="empty-state" style="grid-column:1/-1"><div class="empty-title">No products found</div><div class="empty-sub">Try adjusting your search or filter</div></div>';
+  }
+  if (body) {
+    body.innerHTML = list.map(function(p){ return '<tr><td style="font-weight:600">' + p.name + '</td><td class="dim">' + (p.sku || p.id) + '</td><td>' + p.category + '</td><td>$' + Number(p.price || 0).toFixed(2) + '</td><td>' + p.stock + '</td><td><span class="pill ' + statusClass(p.status) + '">' + p.status + '</span></td><td>' + (p.issues || 0) + '</td></tr>'; }).join('');
+  }
+}
+
+function showProductDetail(id) {
+  const p = products.find(function(x){ return x.id === id; });
+  if (!p) return;
+  document.getElementById('pd-modal-title').textContent = p.name;
+  document.getElementById('pd-modal-body').innerHTML = '<div class="product-cat">' + p.category + '</div><p style="margin:12px 0;color:var(--ink-dim)">' + (p.description || 'No description.') + '</p><div class="stats-row" style="grid-template-columns:repeat(3,1fr);margin:0"><div class="stat-card blue"><div class="stat-label">Price</div><div class="stat-val blue" style="font-size:22px">$' + Number(p.price || 0).toFixed(2) + '</div></div><div class="stat-card green"><div class="stat-label">Stock</div><div class="stat-val green" style="font-size:22px">' + p.stock + '</div></div><div class="stat-card red"><div class="stat-label">Issues</div><div class="stat-val red" style="font-size:22px">' + (p.issues || 0) + '</div></div></div>';
+  document.getElementById('product-detail-modal').classList.add('show');
+}
+
+function populateIssueProducts() {
+  const sel = document.getElementById('issue-product');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">Select product...</option>' + products.map(function(p){ return '<option value="' + p.id + '">' + p.name + '</option>'; }).join('');
+}
+
+function openAddProduct() {
+  document.getElementById('ap-edit-id').value = '';
+  ['ap-name','ap-sku','ap-cat','ap-price','ap-stock','ap-revenue','ap-desc'].forEach(function(id){ const el = document.getElementById(id); if (el) el.value = ''; });
+  document.getElementById('ap-status').value = 'Active';
+  document.getElementById('add-product-modal').classList.add('show');
+}
+
+function saveProduct() {
+  const name = document.getElementById('ap-name').value.trim();
+  const price = parseFloat(document.getElementById('ap-price').value);
+  if (!name || isNaN(price)) { showToast('Product name and price are required', 'error'); return; }
+  const p = {
+    id: 'PRD-' + String(products.length + 1).padStart(4, '0'),
+    name: name,
+    sku: document.getElementById('ap-sku').value.trim() || ('SKU-' + Date.now()),
+    category: document.getElementById('ap-cat').value.trim() || 'General',
+    price: price,
+    stock: parseInt(document.getElementById('ap-stock').value, 10) || 0,
+    revenue: parseFloat(document.getElementById('ap-revenue').value) || 0,
+    status: document.getElementById('ap-status').value,
+    description: document.getElementById('ap-desc').value.trim(),
+    issues: 0
+  };
+  products.unshift(p);
+  closeModal('add-product-modal');
+  updateAll();
+  showToast('Product added', 'success');
+}
+
+function openReportModal() {
+  populateIssueProducts();
+  document.getElementById('issue-desc').value = '';
+  document.getElementById('ml-issue-suggestion').classList.remove('show');
+  document.getElementById('report-modal').classList.add('show');
+}
+
+function submitIssue() {
+  const pid = document.getElementById('issue-product').value;
+  const product = products.find(function(p){ return p.id === pid; });
+  const desc = document.getElementById('issue-desc').value.trim();
+  if (!product || !desc) { showToast('Select a product and describe the issue', 'error'); return; }
+  const sev = document.querySelector('input[name="sev"]:checked').value;
+  const issue = {
+    id: 'ISS-' + String(issues.length + 1).padStart(4, '0'),
+    productId: product.id,
+    productName: product.name,
+    type: document.getElementById('issue-type').value,
+    desc: desc,
+    sev: sev,
+    date: new Date().toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' }),
+    status: 'Open',
+    category: product.category
+  };
+  issues.unshift(issue);
+  product.issues = (product.issues || 0) + 1;
+  closeModal('report-modal');
+  updateAll();
+  showToast('Issue reported', 'success');
+}
+
+function clearPreview() {
+  const input = document.getElementById('file-input');
+  if (input) input.value = '';
+  showToast('Preview cleared', 'success');
+}
+function handleFile() { showToast('File preview is unavailable in this repaired local copy', 'error'); }
+function importData() { showToast('Import is unavailable in this repaired local copy', 'error'); }
+
+function destroyChart(key) {
+  if (charts[key]) { charts[key].destroy(); delete charts[key]; }
+}
+function chartOrSkip(id, key, config) {
+  if (typeof Chart === 'undefined') return;
+  const el = document.getElementById(id);
+  if (!el) return;
+  destroyChart(key);
+  charts[key] = new Chart(el.getContext('2d'), config);
+}
+function renderCharts() {
+  const cats = Array.from(new Set(products.map(function(p){ return p.category; })));
+  const catRevenue = cats.map(function(c){ return products.filter(function(p){ return p.category === c; }).reduce(function(s,p){ return s + (p.revenue || 0); }, 0); });
+  const sevCounts = ['low','medium','high','critical'].map(function(s){ return issues.filter(function(i){ return i.sev === s && i.status !== 'Resolved'; }).length; });
+  chartOrSkip('chart-sales', 'sales', { type:'bar', data:{ labels:cats, datasets:[{ data:catRevenue, backgroundColor:COLORS, borderRadius:4 }] }, options:{ plugins:{ legend:{ display:false } }, responsive:true, maintainAspectRatio:false, scales:{ x:{ ticks:{ color:'#7A8394' }, grid:{ color:'#252931' } }, y:{ ticks:{ color:'#7A8394' }, grid:{ color:'#252931' } } } } });
+  chartOrSkip('chart-issues', 'issues', { type:'doughnut', data:{ labels:['Low','Medium','High','Critical'], datasets:[{ data:sevCounts, backgroundColor:['#22C55E','#3B82F6','#F5A623','#FF3D2E'], borderWidth:0 }] }, options:{ plugins:{ legend:{ position:'bottom', labels:{ color:'#7A8394' } } }, responsive:true, maintainAspectRatio:false } });
+  chartOrSkip('chart-stock', 'stock', { type:'bar', data:{ labels:products.slice(0,8).map(function(p){ return p.name.slice(0,12); }), datasets:[{ data:products.slice(0,8).map(function(p){ return p.stock; }), backgroundColor:'#3B82F6', borderRadius:4 }] }, options:{ plugins:{ legend:{ display:false } }, responsive:true, maintainAspectRatio:false, scales:{ x:{ ticks:{ color:'#7A8394' }, grid:{ color:'#252931' } }, y:{ ticks:{ color:'#7A8394' }, grid:{ color:'#252931' } } } } });
+  chartOrSkip('chart-types', 'types', { type:'pie', data:{ labels:cats, datasets:[{ data:cats.map(function(c){ return products.filter(function(p){ return p.category === c; }).length; }), backgroundColor:COLORS, borderWidth:0 }] }, options:{ plugins:{ legend:{ position:'bottom', labels:{ color:'#7A8394', boxWidth:10, font:{ size:10 } } } }, responsive:true, maintainAspectRatio:false } });
+  renderIssueCharts();
+  renderSalesCharts();
+  renderMLCharts();
+}
+function renderIssueCharts() { chartOrSkip('chart-issues2', 'issues2', { type:'bar', data:{ labels:['Low','Medium','High','Critical'], datasets:[{ data:['low','medium','high','critical'].map(function(s){ return issues.filter(function(i){ return i.sev === s; }).length; }), backgroundColor:['#22C55E','#3B82F6','#F5A623','#FF3D2E'], borderRadius:4 }] }, options:{ plugins:{ legend:{ display:false } }, responsive:true, maintainAspectRatio:false, scales:{ x:{ ticks:{ color:'#7A8394' }, grid:{ color:'#252931' } }, y:{ ticks:{ color:'#7A8394' }, grid:{ color:'#252931' } } } } }); }
+function renderSalesCharts() { chartOrSkip('chart-cat', 'cat', { type:'bar', data:{ labels:products.slice(0,10).map(function(p){ return p.name.slice(0,14); }), datasets:[{ data:products.slice(0,10).map(function(p){ return p.revenue || 0; }), backgroundColor:COLORS, borderRadius:4 }] }, options:{ plugins:{ legend:{ display:false } }, responsive:true, maintainAspectRatio:false, scales:{ x:{ ticks:{ color:'#7A8394' }, grid:{ color:'#252931' } }, y:{ ticks:{ color:'#7A8394' }, grid:{ color:'#252931' } } } } }); chartOrSkip('chart-mix', 'mix', { type:'doughnut', data:{ labels:['Active','Low Stock','Inactive'], datasets:[{ data:['Active','Low Stock','Inactive'].map(function(s){ return products.filter(function(p){ return p.status === s; }).length; }), backgroundColor:['#22C55E','#F5A623','#FF3D2E'], borderWidth:0 }] }, options:{ plugins:{ legend:{ position:'bottom', labels:{ color:'#7A8394' } } }, responsive:true, maintainAspectRatio:false } }); }
+
+function setupAuthTypeToggle() {
+  const update = function(){
+    const checked = document.querySelector('input[name="acc-type"]:checked');
+    const field = document.getElementById('reg-company-field');
+    if (field) field.style.display = checked && checked.value === 'company' ? 'block' : 'none';
+  };
+  document.querySelectorAll('input[name="acc-type"]').forEach(function(r){ r.addEventListener('change', update); });
+  update();
+}
+
+document.addEventListener('DOMContentLoaded', async function(){
+  initDefaultUsers();
+  setupAuthTypeToggle();
+  const ok = await tryAutoLogin();
+  if (ok) bootApp();
+});
+</script>
+</body>
+</html>
